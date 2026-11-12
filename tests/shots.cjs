@@ -1,0 +1,14 @@
+const {chromium}=require('playwright');
+(async()=>{const b=await chromium.launch();
+const ctx=await b.newContext({viewport:{width:390,height:844},deviceScaleFactor:2,hasTouch:true,isMobile:true}); const p=await ctx.newPage();
+await p.goto('file:///home/claude/test.html');await p.waitForTimeout(1000);
+await p.addStyleTag({content:'body,button,input{font-family:"Liberation Sans",Arial,Helvetica,sans-serif !important}'});
+await p.evaluate(()=>document.getElementById('cta').style.display='none');
+const tab=async t=>{ await p.evaluate(t=>document.querySelector(`#tabs button[data-tab=${t}]`).click(),t); await p.waitForTimeout(400); };
+await tab('light'); await p.evaluate(()=>{const e=document.getElementById('s-ucon'); e.value=.4; e.dispatchEvent(new Event('input')); e.dispatchEvent(new Event('change'));}); await p.waitForTimeout(600);
+await p.evaluate(()=>document.getElementById('panel').scrollTop=0);
+await p.screenshot({path:'sh_light.png'});
+await p.evaluate(()=>document.querySelector('label[for=s-ucon]').scrollIntoView({block:'start'})); await p.waitForTimeout(300);
+await p.screenshot({path:'sh_light2.png'});
+await tab('film'); await p.screenshot({path:'sh_film.png'});
+await b.close();})();

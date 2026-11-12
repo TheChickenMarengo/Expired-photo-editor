@@ -1,0 +1,16 @@
+const {chromium}=require('playwright');
+(async()=>{ const b=await chromium.launch(); const errs=[];
+ const ctx=await b.newContext({viewport:{width:390,height:844},deviceScaleFactor:2,hasTouch:true,isMobile:true});
+ const p=await ctx.newPage(); p.on('pageerror',e=>errs.push(e.message)); p.on('console',m=>{if(m.type()==='error')errs.push(m.text())});
+ await p.goto('file:///home/claude/test.html'); await p.waitForTimeout(1500);
+ const measure=async t=>{ await p.click(`.tabs [data-tab=${t}]`); await p.waitForTimeout(300); return p.evaluate(()=>document.scrollingElement.scrollHeight + [...document.querySelectorAll('.sec')].filter(e=>e.offsetParent).reduce((a,e)=>a+e.scrollHeight,0)); };
+ const out={};
+ for(const t of ['light','damage','camera','dark']) out[t]=await measure(t);
+ await p.click('.tabs [data-tab=damage]'); await p.waitForTimeout(300);
+ await p.evaluate(()=>{ const s=document.getElementById('s-dustI'); s.value=.9; s.dispatchEvent(new Event('input',{bubbles:true})); s.dispatchEvent(new Event('change',{bubbles:true})); });
+ await p.waitForTimeout(600);
+ const dmg=await p.$('#g-dmg'); await dmg.scrollIntoViewIfNeeded(); await dmg.screenshot({path:'/tmp/dmg_closed.png'});
+ await p.click('.eff:has(#s-dust) .more'); await p.waitForTimeout(300);
+ await dmg.screenshot({path:'/tmp/dmg_open.png'});
+ console.log(JSON.stringify(out), 'dot:', await p.$eval('.eff:has(#s-dust) .more', b=>b.hasAttribute('data-dot')), 'errs', errs);
+ await b.close(); })();

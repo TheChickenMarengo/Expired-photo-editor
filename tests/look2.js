@@ -1,0 +1,13 @@
+const {chromium}=require('playwright');
+(async()=>{const b=await chromium.launch();const p=await b.newPage({viewport:{width:1280,height:800}});
+const errs=[];p.on('pageerror',e=>errs.push(e.stack));
+await p.goto('file:///home/claude/test.html');await p.waitForTimeout(900);
+await p.evaluate(()=>document.getElementById('cta').style.display='none');
+await p.setInputFiles('.picker input[type=file]:not(#file2):not(#profImport)','/home/claude/room.jpg'); await p.waitForTimeout(1500);
+const g=()=>p.evaluate(()=>[document.getElementById('stockCode').textContent, document.getElementById('s-grain').value, document.getElementById('s-bloom').value]);
+console.log('before',await g());
+await p.click('#tabs button[data-tab=film]'); await p.click('#looks .stock[data-id=nightlamp]'); await p.waitForTimeout(800);
+await p.locator('#view').screenshot({path:'L_lamp.png'}); console.log('look',await g());
+await p.evaluate(()=>{const e=document.getElementById('s-lookAmt'); e.value=.5; e.dispatchEvent(new Event('input'));}); await p.waitForTimeout(600); console.log('half',await g());
+await p.click('#lookOff'); await p.waitForTimeout(600); console.log('removed',await g());
+console.log(errs.join('\n')||'ok');await b.close();})();

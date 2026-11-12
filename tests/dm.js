@@ -1,0 +1,13 @@
+const {chromium}=require('playwright');
+(async()=>{const b=await chromium.launch();const p=await b.newPage({viewport:{width:1280,height:800}});
+const errs=[];p.on('pageerror',e=>errs.push(e.message));
+await p.goto('file:///home/claude/test.html');await p.waitForTimeout(900);
+await p.evaluate(()=>document.getElementById('cta').style.display='none');
+const set=async(k,v)=>{await p.evaluate(([k,v])=>{const e=document.getElementById('s-'+k); e.value=v; e.dispatchEvent(new Event('input')); e.dispatchEvent(new Event('change'));},[k,v]);await p.waitForTimeout(250);};
+for(const k of ['leak','fib','scratch','stains','grain','vig','hal']) await set(k,'0');
+const grab=async n=>{const d=await p.evaluate(()=>document.getElementById('view').toDataURL('image/png'));require('fs').writeFileSync(n,Buffer.from(d.split(',')[1],'base64'));};
+await set('dust','0.5'); await set('dustI','0.3'); await grab('du_lo.png'); await set('dustI','0.9'); await grab('du_hi.png');
+await set('dust','0.8'); await grab('du_more.png');
+await set('dust','0'); await set('fib','0.9'); await set('fibI','0.8'); await grab('fi.png');
+await set('fib','0'); await set('mould','0.6'); await grab('mo6.png'); await set('mouldI','1'); await set('mould','1'); await grab('mo10.png');
+console.log(errs.join('\n')||'ok');await b.close();})();

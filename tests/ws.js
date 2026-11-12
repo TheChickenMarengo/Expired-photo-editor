@@ -1,0 +1,12 @@
+const {chromium}=require('playwright');
+(async()=>{const b=await chromium.launch();const p=await b.newPage({viewport:{width:1280,height:800}});
+const errs=[];p.on('pageerror',e=>errs.push(e.message));
+await p.goto('file:///home/claude/test.html');await p.waitForTimeout(900);
+await p.evaluate(()=>document.getElementById('cta').style.display='none');
+const set=async(k,v)=>{await p.evaluate(([k,v])=>{const e=document.getElementById('s-'+k); e.value=v; e.dispatchEvent(new Event('input')); e.dispatchEvent(new Event('change'));},[k,v]);await p.waitForTimeout(200);};
+for(const k of ['leak','dust','fib','scratch','stains']) await set(k,'0');
+await set('water','0.7'); await p.waitForTimeout(400);
+const d=await p.evaluate(()=>document.getElementById('view').toDataURL('image/png')); require('fs').writeFileSync('ws_a.png',Buffer.from(d.split(',')[1],'base64'));
+await set('waterI','1'); await p.waitForTimeout(400);
+const d2=await p.evaluate(()=>document.getElementById('view').toDataURL('image/png')); require('fs').writeFileSync('ws_b.png',Buffer.from(d2.split(',')[1],'base64'));
+console.log(errs.join('\n')||'ok');await b.close();})();

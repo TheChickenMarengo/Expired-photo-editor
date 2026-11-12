@@ -1,0 +1,11 @@
+const {chromium}=require('playwright');
+(async()=>{const b=await chromium.launch();const ctx=await b.newContext({viewport:{width:390,height:844}});const p=await ctx.newPage();
+const errs=[];p.on('pageerror',e=>errs.push(e.message));p.on('console',m=>{if(m.type()==='error')errs.push(m.text())});
+await p.goto('http://localhost:8765/');await p.waitForTimeout(2500);
+const sw=await p.evaluate(async()=>{const r=await navigator.serviceWorker.getRegistration(); return !!(r&&r.active);});
+const man=await p.evaluate(async()=>{const r=await fetch('manifest.webmanifest'); return (await r.json()).name;});
+await ctx.setOffline(true); await p.reload(); await p.waitForTimeout(1500);
+const ok=await p.evaluate(()=>!!document.getElementById('view') && document.getElementById('view').width>0);
+await p.screenshot({path:'/home/claude/pwa_off.png'});
+console.log({sw,man,offlineWorks:ok}); console.log(errs.filter(e=>!/fonts|ERR_INTERNET_DISCONNECTED|TUNNEL/.test(e)).join('\n')||'no errors');
+await b.close();})();

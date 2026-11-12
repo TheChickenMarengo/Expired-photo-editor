@@ -1,0 +1,16 @@
+const {chromium}=require('playwright');
+(async()=>{const b=await chromium.launch();const p=await b.newPage({viewport:{width:390,height:844},deviceScaleFactor:2});
+const errs=[];p.on('pageerror',e=>errs.push(e.message));
+await p.goto('file:///home/claude/test.html');await p.waitForTimeout(900);
+await p.evaluate(()=>{try{localStorage.clear()}catch(e){}});
+await p.setInputFiles('#file',{name:'photo.png',mimeType:'image/png',buffer:require('fs').readFileSync('r_gold.png')});await p.waitForTimeout(1200);
+console.log('tab after open:', await p.evaluate(()=>document.querySelector('#tabs [aria-selected=true]').dataset.tab));
+const tabs=await p.evaluate(()=>[...document.querySelectorAll('#tabs button')].map(b=>b.dataset.tab).join(','));console.log(tabs);
+await p.click('#tabs button[data-tab=develop]');await p.waitForTimeout(600);
+await p.locator('#view').screenshot({path:'f_blank.png'});
+const set=async(k,v)=>{await p.evaluate(([k,v])=>{const e=document.getElementById('s-'+k); e.value=v; e.dispatchEvent(new Event('input')); e.dispatchEvent(new Event('change'));},[k,v]);await p.waitForTimeout(450);};
+await set('devT','0.35'); await p.locator('#view').screenshot({path:'f_half.png'});
+await set('devT','1'); await p.locator('#view').screenshot({path:'f_full.png'});
+await p.click('#devTypeSeg button[data-k=lith]'); await p.waitForTimeout(500); await p.locator('#view').screenshot({path:'f_lith.png'});
+await p.screenshot({path:'f_ui.png'});
+console.log(errs.join('\n')||'ok');await b.close();})();

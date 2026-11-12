@@ -1,0 +1,15 @@
+const {chromium}=require('playwright');
+(async()=>{const b=await chromium.launch();const p=await b.newPage({viewport:{width:1280,height:800}});
+const errs=[];p.on('pageerror',e=>errs.push(e.message));
+await p.goto('file:///home/claude/perf.html');await p.waitForTimeout(900);
+await p.setInputFiles('#file',{name:'small.png',mimeType:'image/png',buffer:require('fs').readFileSync('small.png')});await p.waitForTimeout(1200);
+const r=await p.evaluate(()=>{ const t0=performance.now(); const u=upscaleCanvas(src.full,4); const ms=performance.now()-t0;
+  const n=document.createElement('canvas'); n.width=u.width; n.height=u.height; n.getContext('2d').imageSmoothingEnabled=false; n.getContext('2d').drawImage(src.full,0,0,u.width,u.height);
+  return {ms:Math.round(ms), w:u.width, h:u.height, a:u.toDataURL('image/png'), b:n.toDataURL('image/png')}; });
+require('fs').writeFileSync('up_ours.png',Buffer.from(r.a.split(',')[1],'base64'));require('fs').writeFileSync('up_nn.png',Buffer.from(r.b.split(',')[1],'base64'));
+console.log(r.ms,r.w,r.h);
+await p.click('#tabs button[data-tab=develop]');await p.click('#upSeg button[data-k="4"]');await p.waitForTimeout(200);
+console.log(await p.textContent('#upHint')); console.log(await p.textContent('#save'));
+await p.click('#save'); await p.waitForTimeout(4000);
+const dims=await p.evaluate(()=>{const i=document.getElementById('modalImg'); return [i.naturalWidth,i.naturalHeight];}); console.log('saved',dims);
+console.log(errs.join('\n')||'ok');await b.close();})();

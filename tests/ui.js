@@ -1,0 +1,15 @@
+const {chromium}=require('playwright');
+(async()=>{const b=await chromium.launch();const p=await b.newPage({viewport:{width:390,height:844},deviceScaleFactor:2});
+const errs=[];p.on('pageerror',e=>errs.push(e.message));
+await p.goto('file:///home/claude/test.html');await p.waitForTimeout(1000);
+await p.screenshot({path:'ui_film.png'});
+await p.click('#tabs button[data-tab=light]');await p.waitForTimeout(300);
+await p.click('#healBtn');await p.waitForTimeout(200);
+await p.fill('#spotSize','0.08');await p.dispatchEvent('#spotSize','input');await p.waitForTimeout(200);
+await p.screenshot({path:'ui_retouch.png'});
+await p.click('#tabs button[data-tab=dark]');await p.waitForTimeout(300);
+await p.screenshot({path:'ui_dark.png'});
+const pw=await b.newPage({viewport:{width:1280,height:800}});pw.on('pageerror',e=>errs.push(e.message));
+await pw.goto('file:///home/claude/test.html');await pw.waitForTimeout(1000);await pw.click('#tabs button[data-tab=light]');await pw.waitForTimeout(300);
+await pw.screenshot({path:'ui_desk.png'});
+console.log(errs.join('\n')||'ok');await b.close();})();

@@ -1,0 +1,20 @@
+const {chromium}=require('playwright');
+(async()=>{const b=await chromium.launch();const p=await b.newPage({viewport:{width:1280,height:800}});
+const errs=[];p.on('pageerror',e=>errs.push(e.message));
+await p.goto('file:///home/claude/test.html');await p.waitForTimeout(900);
+await p.setInputFiles('#file',{name:'streak.png',mimeType:'image/png',buffer:require('fs').readFileSync('streak.png')});await p.waitForTimeout(1200);
+await p.click('#tabs button[data-tab=light]');
+const set=async(k,v)=>{await p.evaluate(([k,v])=>{const e=document.getElementById('s-'+k); e.value=v; e.dispatchEvent(new Event('input')); e.dispatchEvent(new Event('change'));},[k,v]);await p.waitForTimeout(150);};
+for(const k of ['leak','dust','fib','scratch','stains']) await set(k,'0');
+await p.waitForTimeout(500);await p.locator('#view').screenshot({path:'p0.png'});
+await p.click('#tabs button[data-tab=light]');await p.click('#healBtn');
+await p.evaluate(()=>{const e=document.getElementById('spotSize'); e.value=0.022; e.dispatchEvent(new Event('input'));});
+const bb=await p.locator('#view').boundingBox();
+const P=(u,v)=>[bb.x+bb.width*u,bb.y+bb.height*v];
+let [x,y]=P(120/900,120/600); await p.mouse.move(x,y); await p.mouse.down();
+for(let i=1;i<=20;i++){ const u=(120+(260*i/20))/900, v=(120+(210*i/20))/600; [x,y]=P(u,v); await p.mouse.move(x,y); }
+await p.screenshot({path:'p_mid.png',clip:bb});
+await p.mouse.up(); await p.waitForTimeout(800);
+await p.locator('#view').screenshot({path:'p1.png'});
+await p.click('#healBtn'); await p.waitForTimeout(600); await p.locator('#view').screenshot({path:'p2.png'});
+console.log(await p.textContent('#spotCount'), errs.join('\n')||'ok');await b.close();})();

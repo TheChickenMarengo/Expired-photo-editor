@@ -1,0 +1,22 @@
+const {chromium}=require('playwright');
+(async()=>{const b=await chromium.launch();
+const ctx=await b.newContext({viewport:{width:390,height:844},deviceScaleFactor:2,hasTouch:true,isMobile:true}); const p=await ctx.newPage();
+await p.goto('file:///home/claude/'+(process.argv[2]||'past-due.html'));await p.waitForTimeout(900);
+await p.evaluate(()=>document.getElementById('cta').style.display='none');
+await p.evaluate(()=>document.querySelector('#tabs button[data-tab=light]').click()); await p.waitForTimeout(300);
+await p.evaluate(()=>document.getElementById('s-ucon').scrollIntoView({block:'center'})); await p.waitForTimeout(300);
+const cdp=await ctx.newCDPSession(p);
+const bb=await p.evaluate(()=>{const r=document.getElementById('s-ucon').getBoundingClientRect(); return {x:r.x,y:r.y,w:r.width,h:r.height};});
+const cy=bb.y+bb.h/2;
+const val=()=>p.evaluate(()=>+document.getElementById('s-ucon').value);
+const T=(type,x,y)=>cdp.send('Input.dispatchTouchEvent',{type,touchPoints:type==='touchEnd'?[]:[{x,y}]});
+const run=async(name,drift)=>{ await p.evaluate(()=>{const e=document.getElementById('s-ucon'); e.value=0; e.dispatchEvent(new Event('input')); e.dispatchEvent(new Event('change'));}); await p.waitForTimeout(200);
+  const sc0=await p.evaluate(()=>document.getElementById('panel').scrollTop+scrollY);
+  const x0=bb.x+16+(bb.w-32)*.5; await T('touchStart',x0,cy);
+  const vals=[]; for(let i=1;i<=24;i++){ await T('touchMove',x0+i*6,cy+drift*Math.sin(i/3)*i/4); await p.waitForTimeout(16); vals.push(await val()); }
+  await T('touchEnd'); await p.waitForTimeout(200);
+  const sc1=await p.evaluate(()=>document.getElementById('panel').scrollTop+scrollY);
+  const moved=vals.filter((v,i)=>i&&v!==vals[i-1]).length;
+  console.log(name.padEnd(22),'final',vals[vals.length-1].toFixed(2),'updates',moved+'/23','page scrolled',Math.abs(sc1-sc0)>2); };
+await run('straight drag',0); await run('slight drift (4px)',4); await run('wobbly drift (10px)',10); await run('big drift (20px)',20);
+await b.close();})();
