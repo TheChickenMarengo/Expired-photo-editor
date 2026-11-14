@@ -48,7 +48,7 @@ mkdir expired-app && cp -r ../manifest.webmanifest ../sw.js ../icons ../favicon.
 python3 make_pwa.py                          # writes expired-app/index.html
 ```
 
-When releasing, bump the cache name in `sw.js` (for example `expired-v25` → `expired-v25`) so installed copies update.
+When releasing, bump the cache name in `sw.js` (for example `expired-v25` → `expired-v26`) so installed copies update.
 
 ## Testing
 
