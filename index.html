@@ -2025,14 +2025,16 @@ function drawScratches(ctx,W,H,S,amt,I,seed){
 // While a slider is being dragged the preview is rendered smaller, and the size follows how long renders
 // are taking: heavy effects (flash, print development) drop to a smaller picture so the dot keeps up,
 // light ones stay sharp. The full-quality picture is drawn when you let go.
-const DRAG_TIERS=[640,500,400,320,260,200], dragSrc=[]; let dragCost=0, dragTier=0, dragLocked=false;
+const DRAG_TIERS=[640,500,400,320] /* 400 is the floor; 320 only when a render at 400 would freeze the dot */, dragSrc=[]; let dragCost=0, dragTier=0, dragLocked=false;
 function dragSource(){ if(!dragSrc[dragTier]) dragSrc[dragTier]=scaled(src.full,DRAG_TIERS[dragTier]); return dragSrc[dragTier]; }
 // cost per pixel of the latest render; the drag size is chosen from it once, when a drag starts, so the picture
 // never changes size under your finger
 function noteCost(ms,px){ const c=ms/px; dragCost=dragCost?dragCost*.6+c*.4:c; }
 function lockDragTier(W,H){ if(dragLocked) return; dragLocked=true; dragTier=chooseTier(W,H); }
 function chooseTier(W,H){ if(!dragCost) return 0;
-  for(let i=0;i<DRAG_TIERS.length;i++){ const f=DRAG_TIERS[i]/Math.max(W,H); if(dragCost*W*H*f*f<=22) return i; } return DRAG_TIERS.length-1; }
+  const ms=i=>{ const f=Math.min(1,DRAG_TIERS[i]/Math.max(W,H)); return dragCost*W*H*f*f; };
+  for(let i=0;i<3;i++) if(ms(i)<=22) return i;          // largest size that keeps up
+  return ms(2)<=60 ? 2 : 3; }                           // otherwise 400, or 320 for very heavy settings
 const WARM=document.createElement("canvas"), warmed=new Set(); let warmT=0;
 function scheduleWarm(){ clearTimeout(warmT); warmT=setTimeout(warmDrag,500); }
 function warmDrag(){
@@ -2305,7 +2307,7 @@ function setOff(k,off){
 function effP(){ const e=Object.assign({},state.P); state.off.forEach(k=>{e[k]=0;}); if(state.peek) e[state.peek]=0; return e; }
 function draw(){
   if(!src.prev) return;
-  if(comparing){ const o=cropCanvas(src.prev,true); view.width=o.width; view.height=o.height; view.getContext("2d").drawImage(o,0,0); return;}
+  if(comparing){ view.style.filter=""; const o=cropCanvas(src.prev,true); view.width=o.width; view.height=o.height; view.getContext("2d").drawImage(o,0,0); return;}
   const dragging=state.dragging&&src.full; if(dragging) lockDragTier(src.prev.width,src.prev.height);
   // the canvas is sized by its pixels, so a smaller drag preview would shrink the photo on screen: hold the shown size steady
   if(dragging && state.tab!=="crop" && !view.style.width){ const r=view.getBoundingClientRect(); if(r.width>0){ view.style.width=r.width+"px"; view.style.height=r.height+"px"; } }
@@ -2315,6 +2317,11 @@ function draw(){
   const t0=performance.now();
   develop(hs,view,effP(),stockFor(),state.seeds,state.stamp);
   noteCost(performance.now()-t0,hs.width*hs.height);
+  // a stretched drag preview is softened slightly so it reads as soft rather than blocky; cleared at full quality
+  let blur="";
+  if(dragging && view.style.width){ const dpr=window.devicePixelRatio||1, sc=parseFloat(view.style.width)*dpr/view.width;
+    if(sc>1.4) blur="blur("+Math.min(1.2,.45*sc/dpr).toFixed(2)+"px)"; }
+  if(view.style.filter!==blur) view.style.filter=blur;
   if(!dragging) scheduleWarm();
   placeCropBox();
   if(healing && state.spots.length){ // show where spots are while retouching
