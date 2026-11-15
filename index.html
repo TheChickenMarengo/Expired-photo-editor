@@ -1198,20 +1198,20 @@ function develop(src, out, P, stock, SD, stamp){
   // colour shift more than a dark patch. Blotches grow with soak time, tide marks rim where the liquid dried,
   // and at high heat a harsh soup peels the emulsion off from the top layer (yellow) down to bare base.
   const SOUP_ING={ // w / w2: how hard each dye layer is hit [cyan→red, magenta→green, yellow→blue]; blotches drift between the two
-    water:  {ag:.4,  w:[.62,.14,.1],  w2:[.08,.5,.12],  tide:1,   dots:.12, dotC:[.82,.9,1.15], lift:.1,  tone:null,         soft:.5,  cell:1},
-    tea:    {ag:.26, w:[.06,.22,.55], w2:[.12,.32,.7],  tide:1.15,dots:0,   dotC:[1,1,1],       lift:.05, tone:[1.07,.96,.8], soft:.6,  cell:1.15},
-    citrus: {ag:.8,  w:[.08,.85,.3],  w2:[.45,.8,.08],  tide:.8,  dots:.45, dotC:[.85,.55,1.25],lift:.5,  tone:null,         soft:.32, cell:.85},
-    soap:   {ag:.92, w:[.85,.72,.05], w2:[.55,.9,.15],  tide:.6,  dots:.85, dotC:[.42,.55,1.35],lift:.8,  tone:null,         soft:.28, cell:.9},
-    salt:   {ag:.5,  w:[.7,.18,.22],  w2:[.48,.08,.45], tide:.9,  dots:1,   dotC:[1.18,1.22,1.25],lift:.2, tone:null,         soft:.35, cell:.75},
-    vinegar:{ag:.62, w:[.55,.1,.2],   w2:[.42,.22,.1],  tide:.9,  dots:.8,  dotC:[.55,1.12,1.12],lift:.3, tone:null,         soft:.4,  cell:.8},
-    wine:   {ag:.34, w:[.08,.4,.22],  w2:[.04,.3,.34],  tide:1.3, dots:0,   dotC:[1,1,1],       lift:.05, tone:[1.0,.9,1.1],   soft:.55, cell:1.1},
-    alcohol:{ag:.58, w:[.06,.58,.7],  w2:[.1,.78,.22],  tide:.35, dots:.18, dotC:[.9,.7,1.2],   lift:.28, tone:null,         soft:.85, cell:1.6}};
+    water:  {ag:.4, hd:1,  w:[.62,.14,.1],  w2:[.08,.5,.12],  tide:1,   dots:.12, dotC:[.82,.9,1.15], lift:.1,  tone:null,         soft:.5,  cell:1},
+    tea:    {ag:.26, hd:0.7, w:[.06,.22,.55], w2:[.12,.32,.7],  tide:1.15,dots:0,   dotC:[1,1,1],       lift:.05, tone:[1.07,.96,.8], soft:.6,  cell:1.15},
+    citrus: {ag:.8, hd:0.5,  w:[.08,.85,.3],  w2:[.45,.8,.08],  tide:.8,  dots:.45, dotC:[.85,.55,1.25],lift:.5,  tone:null,         soft:.32, cell:.85},
+    soap:   {ag:.92, hd:0.6, w:[.85,.72,.05], w2:[.55,.9,.15],  tide:.6,  dots:.85, dotC:[.42,.55,1.35],lift:.8,  tone:null,         soft:.28, cell:.9},
+    salt:   {ag:.5, hd:0.4,  w:[.7,.18,.22],  w2:[.48,.08,.45], tide:.9,  dots:1,   dotC:[1.18,1.22,1.25],lift:.2, tone:null,         soft:.35, cell:.75},
+    vinegar:{ag:.62, hd:0.5, w:[.55,.1,.2],   w2:[.42,.22,.1],  tide:.9,  dots:.8,  dotC:[.55,1.12,1.12],lift:.3, tone:null,         soft:.4,  cell:.8},
+    wine:   {ag:.34, hd:0.5, w:[.08,.4,.22],  w2:[.04,.3,.34],  tide:1.3, dots:0,   dotC:[1,1,1],       lift:.05, tone:[1.0,.9,1.1],   soft:.55, cell:1.1},
+    alcohol:{ag:.58, hd:0.4, w:[.06,.58,.7],  w2:[.1,.78,.22],  tide:.35, dots:.18, dotC:[.9,.7,1.2],   lift:.28, tone:null,         soft:.85, cell:1.6}};
   const suIds=(P.soupIng||"water").split("+").filter(k=>SOUP_ING[k]); if(!suIds.length) suIds.push("water");
   const suMix=()=>{ if(suIds.length===1) return SOUP_ING[suIds[0]];
     const L=suIds.map(k=>SOUP_ING[k]), n=L.length, boost=1+.18*(n-1), av=f=>L.reduce((a,o)=>a+f(o),0)/n, av3=f=>[0,1,2].map(i=>av(o=>f(o)[i]));
     let tone=null; L.forEach(o=>{ if(o.tone) tone=tone?tone.map((v,i)=>v*o.tone[i]):o.tone.slice(); });
     const dots=Math.min(1,av(o=>o.dots)*boost), dsum=av(o=>o.dots);
-    return {ag:Math.min(1,av(o=>o.ag)*boost), w:av3(o=>o.w), w2:av3(o=>o.w2), tide:av(o=>o.tide), dots, lift:Math.max(...L.map(o=>o.lift)), tone,
+    return {hd:av(o=>o.hd), ag:Math.min(1,av(o=>o.ag)*boost), w:av3(o=>o.w), w2:av3(o=>o.w2), tide:av(o=>o.tide), dots, lift:Math.max(...L.map(o=>o.lift)), tone,
       dotC:dsum>0?[0,1,2].map(i=>L.reduce((a,o)=>a+o.dotC[i]*o.dots,0)/(dsum*n)):[1,1,1], soft:av(o=>o.soft), cell:av(o=>o.cell)}; };
   const suRot=Math.abs(P.soupHue||0)>.5, suTh=(P.soupHue||0)*Math.PI/180, suCo=Math.cos(suTh), suSn=Math.sin(suTh), suRc=0, suVar=P.soupVar==null?.5:P.soupVar;
   const su=P.soup||0, suI=suMix(), suH=P.soupHeat==null?.45:P.soupHeat, suBrush=P.soupHow==="brush";
@@ -1221,8 +1221,12 @@ function develop(src, out, P, stock, SD, stamp){
   // After developing: the dyes are already formed, so it reads as stains, tide marks and lifted emulsion, with little new grain.
   const suWh=({before:{k:.8,sh:1,gr:1.5,ring:.6,lift:.6,dots:.9,back:.45},after:{k:1,sh:0,gr:1,ring:1,lift:1,dots:1,back:.62},developed:{k:.9,sh:0,gr:.4,ring:1.35,lift:1.3,dots:.7,back:.62}})[P.soupWhen]||{k:1,sh:0,gr:1,ring:1,lift:1,dots:1,back:.62};
   const suSat=stock.mono?1:clamp(Math.pow((stock.sat||1),1.5),.65,1.25);
-  const suK=suWh.k*suSat*suI.ag*(.35+.9*suH)*(.6+.4*Math.min(1,su*1.6)), suThr=.2-.42*Math.pow(su,.85), suSoftW=.015+.11*suI.soft;
-  const suLift=su>0?clamp(suWh.lift*suI.lift*(suH-.45)/.55*(.3+.7*su)*1.8,0,1):0, suCrack=su>0?clamp((suH-.65)/.35,0,1)*Math.min(1,suI.ag*1.2):0;
+  // Heat speeds the chemistry. Plain hot water does nothing when cold and a lot near boiling; acids and salt still work cold.
+  const suHk=(1-suI.hd)*(.55+.7*suH)+suI.hd*(.06+1.19*Math.pow(suH,1.2));
+  const suK=suWh.k*suSat*suI.ag*suHk*(.6+.4*Math.min(1,su*1.6)), suThr=.2-.42*Math.pow(su,.85), suSoftW=.015+.11*suI.soft;
+  const suLift=su>0?clamp(suWh.lift*suI.lift*(suH-.5)/.5*(.3+.7*su)*1.8,0,1):0,
+    suRetK=su>0?Math.pow(clamp((suH-.4)/.6,0,1),1.4):0, suCrack=suRetK*Math.min(1,.3+suI.ag);   // cracking (reticulation) starts around 50C and is common near boiling
+  const suRet=suRetK*.85*Math.min(1,su*1.6);   // reticulation also clumps the grain across the whole frame
   const suDots=suWh.dots*suI.dots*Math.min(1,su*1.5), suCell=210*S*suI.cell, suLong=W>=H, oSu=SD.soup*17+410&NM;
   const suRR=rng(SD.soup*13+5), suAng=suRR()*Math.PI, suCa=Math.cos(suAng), suSa=Math.sin(suAng), suShort=Math.min(W,H);
   const suDotCell=Math.max(6,(26-14*suDots)*S), suMono=!!stock.mono, suWa=(suI.w[0]+suI.w[1]+suI.w[2])/3;
@@ -1309,7 +1313,7 @@ function develop(src, out, P, stock, SD, stamp){
       g+=cs*(sh[1]*ws+hi[1]*wh)+tg;
       b+=cs*(sh[2]*ws+hi[2]*wh)+tb;
       r=fr+r*keep; g=fg+g*keep; b=fb+b*keep;
-      suGB=0;
+      suGB=suRet;
       if(su>0){
         const n=cfAt(fSu,x,y);
         const m=sstep(suThr,suThr+suSoftW,n);
@@ -1325,7 +1329,7 @@ function develop(src, out, P, stock, SD, stamp){
           r*=1-(k+rk)*wr; g*=1-(k+rk)*wg; b*=1-(k+rk)*wb;
           const l1=.299*r+.587*g+.114*b, back=(l0-l1)*(suMono?.3:suWh.back)+ring*suK*.06;
           r+=back; g+=back; b+=back;
-          { const fl=m*suK*.16; r+=(.46-r)*fl; g+=(.46-g)*fl; b+=(.46-b)*fl; suGB=m*suK*.9*suWh.gr; }   // washed layers: flatter and grainier
+          { const fl=m*suK*.16; r+=(.46-r)*fl; g+=(.46-g)*fl; b+=(.46-b)*fl; suGB=suRet+m*suK*.9*suWh.gr; }   // washed layers: flatter and grainier
           if(suI.tone&&!suMono){ const tk=m*Math.min(1,su*1.3)*.85; r+=(r*suI.tone[0]-r)*tk; g+=(g*suI.tone[1]-g)*tk; b+=(b*suI.tone[2]-b)*tk; }
           if(suRot){ const dr=r-r0, dg=g-g0, db=b-b0, ka=(dr+dg+db)*(1-suCo)/3;
             r=r0+dr*suCo+(db-dg)*suSn*.57735+ka; g=g0+dg*suCo+(dr-db)*suSn*.57735+ka; b=b0+db*suCo+(dg-dr)*suSn*.57735+ka; }   // turn the dye damage's hue, keep how strongly it bites
@@ -1341,8 +1345,8 @@ function develop(src, out, P, stock, SD, stamp){
                 if(dpt<.12){ const lip=1-.1*(1-dpt/.12); r*=lip; g*=lip; b*=lip; } }   // a dark lip where the layer tore
             }
           }
-          if(suCrack>0&&m>.2){ const cr=(fSuC?fSuC[j]:soupCr(x,y))*suCrack*m*.32; r*=1-cr; g*=1-cr; b*=1-cr; }
         }
+        if(suCrack>0){ const cr=(fSuC?fSuC[j]:soupCr(x,y))*suCrack*(.3+.7*m)*.3*Math.min(1,su*2); r*=1-cr; g*=1-cr; b*=1-cr; }
         if(suDots>0){ // specks where crystals or bubbles sat
           const cx=Math.floor(x/suDotCell), cy=Math.floor(y/suDotCell), hz=suHash(cx,cy,1);
           const near=Math.max(cover,.25*Math.min(1,su*2));
