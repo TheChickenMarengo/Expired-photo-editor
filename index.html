@@ -415,6 +415,33 @@ a.btn{text-decoration:none}
     </div>
 
     <div class="sec">
+      <h2>Film soup</h2>
+      <p class="hint" style="margin:0 0 10px">The roll was soaked in something before it was developed. The liquid eats into the colour layers, leaves tide marks where it dried and, hot or harsh enough, lifts the emulsion off.</p>
+      <div class="seg" role="group" aria-label="What the film was soaked in (pick one or mix several)" id="soupIngSeg" style="grid-template-columns:repeat(4,1fr)">
+        <button type="button" data-k="water" aria-pressed="true">Hot water</button>
+        <button type="button" data-k="tea" aria-pressed="false">Tea, coffee</button>
+        <button type="button" data-k="citrus" aria-pressed="false">Citrus</button>
+        <button type="button" data-k="soap" aria-pressed="false">Soap</button>
+        <button type="button" data-k="salt" aria-pressed="false">Salt water</button>
+        <button type="button" data-k="alcohol" aria-pressed="false">Alcohol</button>
+        <button type="button" data-k="vinegar" aria-pressed="false">Vinegar</button>
+        <button type="button" data-k="wine" aria-pressed="false">Red wine</button>
+      </div>
+      <p class="hint" id="soupHint" style="margin:8px 0 12px"></p>
+      <div class="ctrls" id="g-soup"></div>
+      <div class="seg" role="group" aria-label="When the film was soaked" id="soupWhenSeg" style="margin-top:12px;grid-template-columns:repeat(3,1fr)">
+        <button type="button" data-k="before" aria-pressed="false">Before shooting</button>
+        <button type="button" data-k="after" aria-pressed="true">After shooting</button>
+        <button type="button" data-k="developed" aria-pressed="false">After developing</button>
+      </div>
+      <p class="hint" id="soupWhenHint" style="margin:8px 0 0"></p>
+      <div class="seg" role="group" aria-label="How the soup got onto the film" id="soupHowSeg" style="margin-top:12px">
+        <button type="button" data-k="tank" aria-pressed="true">Whole roll soaked</button>
+        <button type="button" data-k="brush" aria-pressed="false">Brushed on</button>
+      </div>
+    </div>
+
+    <div class="sec">
       <h2>Camera type</h2>
       <div class="seg" role="group" aria-label="Camera type" id="camSeg" style="grid-template-columns:repeat(3,1fr)">
         <button type="button" data-k="standard" aria-pressed="true">Standard</button>
@@ -666,6 +693,10 @@ const SLIDERS = [
   {k:"rollFogI", label:"Roll fog intensity", min:0, max:1, step:.01, g:"acc", gap:true},
   {k:"mould", label:"Mould", min:0, max:1, step:.01, g:"acc", rr:"mould", rrName:"mould"},
   {k:"mouldI", label:"Mould intensity", min:0, max:1, step:.01, g:"acc"},
+  {k:"soup", label:"Soak time", min:0, max:1, step:.01, g:"soup", rr:"soup", rrName:"soup pattern", noType:true, fmt:v=>soakText(v)},
+  {k:"soupHue", label:"Colour shift", min:-180, max:180, step:1, g:"soup", noToggle:true, fmt:v=>(v>0?"+":"")+Math.round(v)+"°"},
+  {k:"soupVar", label:"Colour variety", min:0, max:1, step:.01, g:"soup", noToggle:true, fmt:v=>Math.round(v*100)+"%"},
+  {k:"soupHeat", label:"Heat", min:0, max:1, step:.01, g:"soup", noToggle:true, fmt:v=>Math.round(15+v*85)+"°C"},
   {k:"dispSoft", label:"Plastic lens softness", min:0, max:1, step:.01, g:"disp"},
   {k:"dispCA", label:"Colour fringing", min:0, max:1, step:.01, g:"disp"},
   {k:"dispDist", label:"Barrel distortion", min:0, max:1, step:.01, g:"disp"},
@@ -715,6 +746,9 @@ const SLIDERS = [
 ];
 
 const clamp = (v,a,b)=> v<a?a:v>b?b:v;
+// film soup soak time: zero, then an hour to a week on a log scale
+function soakHours(v){ return v<=0?0:Math.exp(Math.log(1)+(Math.log(168)-Math.log(1))*v); }
+function soakText(v){ if(v<=0) return "Off"; const h=soakHours(v); return h<23.5? Math.round(h)+" h" : (Math.round(h/24*2)/2)+(h<36?" day":" days"); }
 // A canvas that has just left a cache may still be in use by the render that is running, so its memory is handed back
 // only after that render has finished (timers run after the current task), never in the middle of it.
 const freeLater=c=>{ setTimeout(()=>{ c.width=c.height=0; },0); };
@@ -724,7 +758,7 @@ const NOW_YEAR = new Date().getFullYear(), NOW_MONTH = new Date().getMonth()+1;
 
 /* ---------- State ---------- */
 const ISOS=[25,50,100,160,200,400,500,640,800,1600,3200];
-const state = {crop:{ratio:"free",portrait:false,angle:0,rot:0,flip:false,rect:{x:0,y:0,w:1,h:1}}, upscale:1, stock:STOCKS[0], years:12, storage:"shelf", iso:200, rate:0, off:new Set(), peek:null, spots:[], lastSrc:null, seeds:{devag:131,base:7,leak:11,dust:23,fib:31,scratch:43,stain:57,mould:67,kink:83,water:89,grain:5,edgeFog:13,mottle:17,retic:19,rollFog:29,overlap:37,bounce:41,plate:53,surge:59,airbell:97,orbs:139,pin:149,dichroic:103,fixer:107,burn:109,paper:113,spread:127}, stamp:false, P:null};
+const state = {crop:{ratio:"free",portrait:false,angle:0,rot:0,flip:false,rect:{x:0,y:0,w:1,h:1}}, upscale:1, stock:STOCKS[0], years:12, storage:"shelf", iso:200, rate:0, off:new Set(), peek:null, spots:[], lastSrc:null, seeds:{devag:131,base:7,leak:11,dust:23,fib:31,scratch:43,stain:57,mould:67,kink:83,water:89,grain:5,edgeFog:13,mottle:17,retic:19,rollFog:29,overlap:37,bounce:41,plate:53,surge:59,airbell:97,orbs:139,pin:149,dichroic:103,fixer:107,burn:109,paper:113,spread:127,soup:151}, stamp:false, P:null};
 // Film speed. Faster film has bigger, heavier grain and fogs faster with age (it's more sensitive
 // to background radiation and heat). Expired film also loses roughly a stop of speed per decade,
 // which photographers make up for by rating it lower (overexposing).
@@ -768,6 +802,7 @@ function derive(){
     paperBase: state.P?state.P.paperBase:"neutral", paperSurf: state.P?state.P.paperSurf:"glossy",
     tired: 0, border: clamp(.06*a,0,1), plate: 0,
     rollFog: 0, mould: 0, rollFogI:.6, mouldI:.6, bounce: 0, overlap: 0,
+    soup: 0, soupHeat: state.P&&state.P.soupHeat!=null?state.P.soupHeat:.45, soupHue: state.P&&state.P.soupHue||0, soupVar: state.P&&state.P.soupVar!=null?state.P.soupVar:.5, soupIng: state.P&&state.P.soupIng||"water", soupHow: state.P&&state.P.soupHow||"tank", soupWhen: state.P&&state.P.soupWhen||"after",
     dbl: state.P?state.P.dbl:0,
     layer: 0, layerC: s.layerC||"magenta", soft: s.id==="instant"?.25:s.id==="integral"?.15:0, haze: s.id==="instant"?.15:s.id==="integral"?.12:s.id==="sport"?.18:0,
     frame: s.id==="instant"||s.id==="integral", spread: (s.id==="instant"||s.id==="integral")?clamp(.15+.1*a,0,1):0, spreadC: "yellow",
@@ -812,6 +847,17 @@ function rng(seed){let s=seed>>>0||1;return ()=>{s^=s<<13;s>>>=0;s^=s>>17;s^=s<<
    so on the preview they're computed once and reused while other sliders move. Full-size exports
    skip the cache to keep memory down on phones. */
 const FCACHE=new Map(), LCACHE=new Map(), CACHE_MAX_PX=1.3e6, FC_BUDGET=56e6; let fcBytes=0;
+// A smooth pattern worked out on a coarse grid (every q pixels) and blended between grid points when read:
+// much cheaper than computing it at every pixel, and indistinguishable for shapes larger than a few grid steps.
+function coarseField(key,W,H,q,fn){
+  const cw=Math.ceil(W/q)+1, ch=Math.ceil(H/q)+1, small=W*H<=CACHE_MAX_PX, k=key+"|q"+q+"|"+W+"x"+H;
+  let f=small?FCACHE.get(k):null;
+  if(!f){ f=new Float32Array(cw*ch); for(let y=0,j=0;y<ch;y++) for(let x=0;x<cw;x++) f[j++]=fn(x*q,y*q);
+    if(small){ FCACHE.set(k,f); fcBytes+=f.byteLength; } }
+  return {f,cw,q,iq:1/q};
+}
+function cfAt(F,x,y){ const u=x*F.iq, v=y*F.iq, xi=u|0, yi=v|0, fx=u-xi, fy=v-yi, i=yi*F.cw+xi, f=F.f;
+  const a=f[i]+(f[i+1]-f[i])*fx, b=f[i+F.cw]+(f[i+F.cw+1]-f[i+F.cw])*fx; return a+(b-a)*fy; }
 function cacheField(key,W,H,fn){
   if(W*H>CACHE_MAX_PX) return null;
   const k=key+"|"+W+"x"+H; let f=FCACHE.get(k);
@@ -1146,7 +1192,65 @@ function develop(src, out, P, stock, SD, stamp){
   const pBase=P.paperBase||"neutral", pSurf=P.paperSurf||"glossy", oPf=SD.paper*5+150&NM;
   const pW= pBase==="warm"?[1,.965,.9]:pBase==="cool"?[.965,.98,1]:[1,1,1];
   const sp=P.spread||0, spC=P.spreadC==="blue"?[.82,.95,1.12]:[1.1,1.0,.72], oS=SD.spread*7+900&NM;
+  // Film soup. The roll sat in a liquid before development. Worked in terms of the negative's three dye layers:
+  // where a layer loses dye the print loses that colour (cyan dye → red, magenta → green, yellow → blue),
+  // and the lab scanner's auto-correction then pulls the brightness most of the way back, so damage reads as a
+  // colour shift more than a dark patch. Blotches grow with soak time, tide marks rim where the liquid dried,
+  // and at high heat a harsh soup peels the emulsion off from the top layer (yellow) down to bare base.
+  const SOUP_ING={ // w / w2: how hard each dye layer is hit [cyan→red, magenta→green, yellow→blue]; blotches drift between the two
+    water:  {ag:.4,  w:[.62,.14,.1],  w2:[.08,.5,.12],  tide:1,   dots:.12, dotC:[.82,.9,1.15], lift:.1,  tone:null,         soft:.5,  cell:1},
+    tea:    {ag:.26, w:[.06,.22,.55], w2:[.12,.32,.7],  tide:1.15,dots:0,   dotC:[1,1,1],       lift:.05, tone:[1.07,.96,.8], soft:.6,  cell:1.15},
+    citrus: {ag:.8,  w:[.08,.85,.3],  w2:[.45,.8,.08],  tide:.8,  dots:.45, dotC:[.85,.55,1.25],lift:.5,  tone:null,         soft:.32, cell:.85},
+    soap:   {ag:.92, w:[.85,.72,.05], w2:[.55,.9,.15],  tide:.6,  dots:.85, dotC:[.42,.55,1.35],lift:.8,  tone:null,         soft:.28, cell:.9},
+    salt:   {ag:.5,  w:[.7,.18,.22],  w2:[.48,.08,.45], tide:.9,  dots:1,   dotC:[1.18,1.22,1.25],lift:.2, tone:null,         soft:.35, cell:.75},
+    vinegar:{ag:.62, w:[.55,.1,.2],   w2:[.42,.22,.1],  tide:.9,  dots:.8,  dotC:[.55,1.12,1.12],lift:.3, tone:null,         soft:.4,  cell:.8},
+    wine:   {ag:.34, w:[.08,.4,.22],  w2:[.04,.3,.34],  tide:1.3, dots:0,   dotC:[1,1,1],       lift:.05, tone:[1.0,.9,1.1],   soft:.55, cell:1.1},
+    alcohol:{ag:.58, w:[.06,.58,.7],  w2:[.1,.78,.22],  tide:.35, dots:.18, dotC:[.9,.7,1.2],   lift:.28, tone:null,         soft:.85, cell:1.6}};
+  const suIds=(P.soupIng||"water").split("+").filter(k=>SOUP_ING[k]); if(!suIds.length) suIds.push("water");
+  const suMix=()=>{ if(suIds.length===1) return SOUP_ING[suIds[0]];
+    const L=suIds.map(k=>SOUP_ING[k]), n=L.length, boost=1+.18*(n-1), av=f=>L.reduce((a,o)=>a+f(o),0)/n, av3=f=>[0,1,2].map(i=>av(o=>f(o)[i]));
+    let tone=null; L.forEach(o=>{ if(o.tone) tone=tone?tone.map((v,i)=>v*o.tone[i]):o.tone.slice(); });
+    const dots=Math.min(1,av(o=>o.dots)*boost), dsum=av(o=>o.dots);
+    return {ag:Math.min(1,av(o=>o.ag)*boost), w:av3(o=>o.w), w2:av3(o=>o.w2), tide:av(o=>o.tide), dots, lift:Math.max(...L.map(o=>o.lift)), tone,
+      dotC:dsum>0?[0,1,2].map(i=>L.reduce((a,o)=>a+o.dotC[i]*o.dots,0)/(dsum*n)):[1,1,1], soft:av(o=>o.soft), cell:av(o=>o.cell)}; };
+  const suRot=Math.abs(P.soupHue||0)>.5, suTh=(P.soupHue||0)*Math.PI/180, suCo=Math.cos(suTh), suSn=Math.sin(suTh), suRc=0, suVar=P.soupVar==null?.5:P.soupVar;
+  const su=P.soup||0, suI=suMix(), suH=P.soupHeat==null?.45:P.soupHeat, suBrush=P.soupHow==="brush";
+  let suGB=0;
+  // When it was soaked. Before shooting: the dried-out emulsion is exposed already damaged, so the effect is a touch milder and shows
+  // in shadows and midtones as uneven speed (muddy, grainier patches). After shooting: the latent image is hit (the baseline).
+  // After developing: the dyes are already formed, so it reads as stains, tide marks and lifted emulsion, with little new grain.
+  const suWh=({before:{k:.8,sh:1,gr:1.5,ring:.6,lift:.6,dots:.9,back:.45},after:{k:1,sh:0,gr:1,ring:1,lift:1,dots:1,back:.62},developed:{k:.9,sh:0,gr:.4,ring:1.35,lift:1.3,dots:.7,back:.62}})[P.soupWhen]||{k:1,sh:0,gr:1,ring:1,lift:1,dots:1,back:.62};
+  const suSat=stock.mono?1:clamp(Math.pow((stock.sat||1),1.5),.65,1.25);
+  const suK=suWh.k*suSat*suI.ag*(.35+.9*suH)*(.6+.4*Math.min(1,su*1.6)), suThr=.2-.42*Math.pow(su,.85), suSoftW=.015+.11*suI.soft;
+  const suLift=su>0?clamp(suWh.lift*suI.lift*(suH-.45)/.55*(.3+.7*su)*1.8,0,1):0, suCrack=su>0?clamp((suH-.65)/.35,0,1)*Math.min(1,suI.ag*1.2):0;
+  const suDots=suWh.dots*suI.dots*Math.min(1,su*1.5), suCell=210*S*suI.cell, suLong=W>=H, oSu=SD.soup*17+410&NM;
+  const suRR=rng(SD.soup*13+5), suAng=suRR()*Math.PI, suCa=Math.cos(suAng), suSa=Math.sin(suAng), suShort=Math.min(W,H);
+  const suDotCell=Math.max(6,(26-14*suDots)*S), suMono=!!stock.mono, suWa=(suI.w[0]+suI.w[1]+suI.w[2])/3;
+  const soupN=(x,y)=>{ let u,v;
+    if(suBrush){ u=(x*suCa+y*suSa)/(suCell*2.4); v=(-x*suSa+y*suCa)/(suCell*.5); }
+    else { u=x/(suCell*(suLong?1.4:1)); v=y/(suCell*(suLong?1:1.4)); }
+    // warped, layered noise so blotches are rounded and organic rather than boxy
+    const wx=vns(u*.8,v*.8,oSu+61)*1.1, wy=vns(u*.8+5.2,v*.8+1.3,oSu+67)*1.1; u+=wx; v+=wy;
+    let n=vns(u,v,oSu)*.58+vns(u*2.1,v*2.1,oSu+11)*.27+vns(u*4.3,v*4.3,oSu+17)*.12;
+    if(!suBrush){ // whole roll: liquid creeps in from the film's long edges and sits between the coils
+      const de=(suLong?Math.min(y,H-1-y):Math.min(x,W-1-x))/(suShort*.5), e=1-clamp(de/.8,0,1); n+=e*e*.3-.07; }
+    n+=vns(u*.3,v*.3,oSu+91)*.2;   // large slow swells so some blotches are far bigger than the rest
+    if(!suBrush){ const ry=vns(x/(suCell*.16),y/(suCell*1.7),oSu+97); n+=ry*.1+Math.max(0,ry)*.06; }   // liquid ran downward in streaks
+    return n+vns(x/(7*S),y/(7*S),oSu+23)*.035; };    // fine wobble so edges are ragged
+  const soupHue=(x,y)=>sstep(-.16,.16,vns(x/(suCell*.8),y/(suCell*.8),oSu+31)+vns(x/(suCell*.3),y/(suCell*.3),oSu+37)*.3);
+  const soupPeel=(x,y)=>{ const u=x/(70*S)+vns(x/(40*S),y/(40*S),oSu+71)*.6, v=y/(70*S)+vns(x/(40*S)+3,y/(40*S),oSu+73)*.6;
+    return vns(u,v,oSu+41)*.8+vns(x/(22*S),y/(22*S),oSu+47)*.14+vns(x/(6*S),y/(6*S),oSu+49)*.05; };
+  const soupCr=(x,y)=>{ const a=1-Math.abs(vns(x/(2.6*S),y/(2.6*S),oSu+53)*2.6); return Math.pow(clamp(a,0,1),6); };
+  const suHash=(i,j2,k)=>{ const h=Math.sin(i*127.1+j2*311.7+k*74.7+SD.soup*.13)*43758.5453; return h-Math.floor(h); };
   // cached noise fields (preview only; null means compute inline)
+  const suKey=SD.soup+"_"+suIds.join("+")+"_"+(suBrush?1:0);
+  const suQ=Math.max(1,Math.round(1.6*S));
+  const fSu = su>0 ? coarseField("su"+suKey, W,H,suQ,soupN) : null;
+  const fSuH = su>0 ? coarseField("suh"+suKey, W,H,suQ*2,soupHue) : null;
+  const fSuP = suLift>.02 ? coarseField("sup"+SD.soup, W,H,suQ,soupPeel) : null;
+  const fSuJ = suLift>.02 ? coarseField("suj"+SD.soup, W,H,suQ*2,(x,y)=>vns(x/(26*S),y/(26*S),oSu+81)*.9) : null;
+  const fSuJ2 = suLift>.02 ? coarseField("suj2"+SD.soup, W,H,suQ*2,(x,y)=>vns(x/(18*S),y/(18*S),oSu+87)*1.1) : null;
+  const fSuC = suCrack>0 ? cacheField("suc"+SD.soup, W,H,soupCr) : null;
   const fSt = st>0 ? cacheField("st"+sSt, W,H,(x,y)=>vns(x/stCell,y/stCell,o4)*.65+vns(x/stCell2,y/stCell2,o5)*.35) : null;
   const fSh = st>0 ? cacheField("sh"+sSt, W,H,(x,y)=>sstep(-.12,.12,vns(x/hCell,y/hCell,o6))) : null;
   const fMo = mo>0 ? cacheField("mo"+SD.mottle, W,H,(x,y)=>vns(x/moC,y/moC,oM1)*.55+vns(x/(moC*.45),y/(moC*.45),oM2)*.3+vns(x/(moC*.18),y/(moC*.18),oM3)*.15) : null;
@@ -1205,6 +1309,50 @@ function develop(src, out, P, stock, SD, stamp){
       g+=cs*(sh[1]*ws+hi[1]*wh)+tg;
       b+=cs*(sh[2]*ws+hi[2]*wh)+tb;
       r=fr+r*keep; g=fg+g*keep; b=fb+b*keep;
+      suGB=0;
+      if(su>0){
+        const n=cfAt(fSu,x,y);
+        const m=sstep(suThr,suThr+suSoftW,n);
+        const ring=suI.tide*suWh.ring*sstep(suThr-.03,suThr-.004,n)*(1-sstep(suThr+.004,suThr+.03,n));
+        let cover=m;
+        if(m>0||ring>0){
+          const r0=r, g0=g, b0=b, hh=suVar===1?cfAt(fSuH,x,y):clamp(.5+(cfAt(fSuH,x,y)-.5)*suVar*2,0,1);
+          let wr=suI.w[0]+(suI.w2[0]-suI.w[0])*hh, wg=suI.w[1]+(suI.w2[1]-suI.w[1])*hh, wb=suI.w[2]+(suI.w2[2]-suI.w[2])*hh;
+          if(suMono){ wr=wg=wb=suWa; }
+          // deeper inside a blotch the liquid sat longer
+          const k=m*suK*(.75+.5*sstep(suThr,suThr+.25,n))*(1-suWh.sh*.6*clamp(.299*r+.587*g+.114*b,0,1)), rk=ring*suK*.55;
+          const l0=.299*r+.587*g+.114*b;
+          r*=1-(k+rk)*wr; g*=1-(k+rk)*wg; b*=1-(k+rk)*wb;
+          const l1=.299*r+.587*g+.114*b, back=(l0-l1)*(suMono?.3:suWh.back)+ring*suK*.06;
+          r+=back; g+=back; b+=back;
+          { const fl=m*suK*.16; r+=(.46-r)*fl; g+=(.46-g)*fl; b+=(.46-b)*fl; suGB=m*suK*.9*suWh.gr; }   // washed layers: flatter and grainier
+          if(suI.tone&&!suMono){ const tk=m*Math.min(1,su*1.3)*.85; r+=(r*suI.tone[0]-r)*tk; g+=(g*suI.tone[1]-g)*tk; b+=(b*suI.tone[2]-b)*tk; }
+          if(suRot){ const dr=r-r0, dg=g-g0, db=b-b0, ka=(dr+dg+db)*(1-suCo)/3;
+            r=r0+dr*suCo+(db-dg)*suSn*.57735+ka; g=g0+dg*suCo+(dr-db)*suSn*.57735+ka; b=b0+db*suCo+(dg-dr)*suSn*.57735+ka; }   // turn the dye damage's hue, keep how strongly it bites
+          if(suLift>.02&&m>.6){ // emulsion peeled in a few ragged holes: top layer (yellow dye) first, then magenta, rarely bare base
+            const q=cfAt(fSuP,x,y)+(m-.6)*.15, t0=.36-.3*suLift;
+            if(q>t0){ const dpt=(q-t0)/.22;
+              if(suMono){ const v=dpt>.85?.2:1-clamp(dpt,0,1)*.5; r*=v; g*=v; b*=v; }
+              else { // each layer tears along its own ragged line, so the bands vary in width instead of forming neat rings
+                const j1=cfAt(fSuJ,x,y), j2=cfAt(fSuJ2,x,y);
+                const e1=sstep(0,.25,dpt); b*=1-.5*e1; r+=(.1*e1)*(1-r)*.3;
+                const t2=.5+j1*.5; if(dpt>t2){ const e2=sstep(t2,t2+.3,dpt); g*=1-.55*e2; }
+                const t3=1.05+j2*.6; if(dpt>t3){ const e3=sstep(t3,t3+.35,dpt)*.8; const bl=.7+.6*(.299*r+.587*g+.114*b); r=r*(1-e3)+.10*bl*e3; g=g*(1-e3)+.25*bl*e3; b=b*(1-e3)+.26*bl*e3; }
+                if(dpt<.12){ const lip=1-.1*(1-dpt/.12); r*=lip; g*=lip; b*=lip; } }   // a dark lip where the layer tore
+            }
+          }
+          if(suCrack>0&&m>.2){ const cr=(fSuC?fSuC[j]:soupCr(x,y))*suCrack*m*.32; r*=1-cr; g*=1-cr; b*=1-cr; }
+        }
+        if(suDots>0){ // specks where crystals or bubbles sat
+          const cx=Math.floor(x/suDotCell), cy=Math.floor(y/suDotCell), hz=suHash(cx,cy,1);
+          const near=Math.max(cover,.25*Math.min(1,su*2));
+          if(hz<suDots*.55*near){ const px=(cx+.2+.6*suHash(cx,cy,2))*suDotCell, py=(cy+.2+.6*suHash(cx,cy,3))*suDotCell;
+            const rad=(.7+2.6*Math.pow(suHash(cx,cy,4),2))*S*(.8+.6*suK), ddx=x-px, ddy=y-py, dd=Math.sqrt(ddx*ddx+ddy*ddy);
+            if(dd<rad*1.3){ const a=(1-sstep(rad*.75,rad*1.25,dd))*(.55+.45*suHash(cx,cy,5));
+              const c=suMono?[(suI.dotC[0]+suI.dotC[1]+suI.dotC[2])/3,0,0]:suI.dotC, c1=suMono?c[0]:c[1], c2=suMono?c[0]:c[2];
+              r+=(r*c[0]+(c[0]>1?.12:0)-r)*a; g+=(g*c1+(c1>1?.12:0)-g)*a; b+=(b*c2+(c2>1?.12:0)-b)*a; } }
+        }
+      }
       if(st>0){
         // Chemical stains: uneven developer, moisture and old processing chemistry.
         // Stronger settings spread further and leave darker "tide line" rims at their edges.
@@ -1365,7 +1513,7 @@ function develop(src, out, P, stock, SD, stamp){
       }
       if(gr>0){
         const lg=clamp(.299*r+.587*g+.114*b,0,1);
-        const amp=gr*(.35+2.6*lg*(1-lg))*(1+ux*1.1*(1-lg));
+        const amp=gr*(.35+2.6*lg*(1-lg))*(1+ux*1.1*(1-lg))*(1+suGB);
         const n=(fG?fG[j]:vn(x/gCell,y/gCell,o1)*1.25+vn(x/gCell2,y/gCell2,o2)*.7)*amp;
         let c=0; if(chroma) c=(fGc?fGc[j]:vn(x/gCell,y/gCell,o3))*amp*chroma;
         r+=n+c; g+=n; b+=n-c;
@@ -2185,7 +2333,22 @@ function syncDebris(){
   document.querySelectorAll("#debris button").forEach(b=>b.setAttribute("aria-pressed", b.dataset.k===state.P.debris?"true":"false"));
   $("debrisHint").textContent=DEBRIS_HINT[state.P.debris];
 }
-function syncFaults(){
+const SOUP_HINT={water:"Mild. Soft pastel patches and strong tide marks, very little damage.",
+  tea:"Tannins stain the film warm and brown in blotches; gentle on the dyes.",
+  citrus:"Acid. Eats the magenta and yellow layers: pinks and purples, some specks, emulsion lifts when hot.",
+  soap:"Alkaline and the harshest. Strong colour shifts, blue and purple dots, peeling emulsion.",
+  salt:"Leaves crystal specks where it dried, with a cool teal cast.",
+  alcohol:"Spreads wide and soft. Big blooms with faint edges.",
+  vinegar:"Acid. Teal spots and cool blotches; the classic cause of teal specks on souped rolls.",
+  wine:"Stains the film purple and leaves strong tide marks, but barely damages the dyes."};
+function syncSoup(){
+  document.querySelectorAll("#soupIngSeg button").forEach(b=>b.setAttribute("aria-pressed", (state.P.soupIng||"water").split("+").includes(b.dataset.k)?"true":"false"));
+  document.querySelectorAll("#soupHowSeg button").forEach(b=>b.setAttribute("aria-pressed", b.dataset.k===state.P.soupHow?"true":"false"));
+  document.querySelectorAll("#soupWhenSeg button").forEach(b=>b.setAttribute("aria-pressed", b.dataset.k===(state.P.soupWhen||"after")?"true":"false"));
+  $("soupWhenHint").textContent=({before:"Soaked, dried for a week or more, then shot. Exposed through damaged emulsion: patchy, grainier shadows, a little milder.",after:"Shot first, then soaked and dried before development. The hidden image takes the hit: the classic soup look.",developed:"Soaked after processing. The dyes are already set, so it stains, leaves tide marks and lifts emulsion rather than shifting colour."})[state.P.soupWhen||"after"];
+  { const ids=(state.P.soupIng||"water").split("+").filter(k=>SOUP_HINT[k]); $("soupHint").textContent=ids.length>1?"Mixed: "+ids.map(k=>({water:"hot water",tea:"tea or coffee",citrus:"citrus",soap:"soap",salt:"salt water",alcohol:"alcohol",vinegar:"vinegar",wine:"red wine"})[k]).join(" + ")+". Tap again to take one out.":(SOUP_HINT[ids[0]]||""); }
+}
+function syncFaults(){ syncSoup();
   document.querySelectorAll("#layerSeg button").forEach(b=>b.setAttribute("aria-pressed", b.dataset.k===state.P.layerC?"true":"false"));
   document.querySelectorAll("#spreadSeg button").forEach(b=>b.setAttribute("aria-pressed", b.dataset.k===state.P.spreadC?"true":"false"));
   $("frame").checked=!!state.P.frame;
@@ -2224,7 +2387,7 @@ function updateTabDots(){
 // position of the slider displays (works for plain numbers, signed numbers, degrees, seconds and so on)
 const numIn=str=>{ const m=String(str).match(/(\d+(?:\.\d+)?)/); if(!m) return null; let n=+m[1]; if(/[−-]|Cool|Green|over/i.test(str.slice(0,m.index))) n=-n; return n; };
 const shown=(s,v)=> s.fmt ? s.fmt(v) : String(Math.round(v/s.max*100));
-const canType=s=>{ for(const v of [s.min,(s.min+s.max)/2,s.max]){ const t=shown(s,v); if(t.includes(":")||numIn(t)===null) return false; } return true; };
+const canType=s=>{ if(s.noType) return false; for(const v of [s.min,(s.min+s.max)/2,s.max]){ const t=shown(s,v); if(t.includes(":")||numIn(t)===null) return false; } return true; };
 function valueFor(s,n){ let bd=1e9, hits=[]; const N=Math.round((s.max-s.min)/s.step);
   for(let i=0;i<=N;i++){ const v=+(s.min+i*s.step).toFixed(6), q=numIn(shown(s,v)); if(q===null) continue; const d=Math.abs(q-n);
     if(d<bd-1e-9){ bd=d; hits=[v]; } else if(Math.abs(d-bd)<1e-9) hits.push(v); }
@@ -2419,6 +2582,9 @@ function syncWheel(fromUser){
 $("wheelV").addEventListener("input",e=>{wheel[wheel.active].v=+e.target.value; syncWheel(true);});
 $("comp").addEventListener("change",e=>{wheel.comp=e.target.checked; syncWheel(true);});
 $("resetBasic").addEventListener("click",()=>{wheel.warm=hex2hsv("#ff9a3c"); wheel.cool=hex2hsv("#3f8cff"); wheel.comp=false; $("comp").checked=false; syncWheel(false); schedule();});
+[["#soupIngSeg","soupIng"],["#soupWhenSeg","soupWhen"],["#soupHowSeg","soupHow"]].forEach(([sel,key])=>document.querySelectorAll(sel+" button").forEach(b=>b.addEventListener("click",()=>{
+  if(key==="soupIng"){ const cur=(state.P.soupIng||"water").split("+").filter(Boolean), k=b.dataset.k, i=cur.indexOf(k);
+    if(i>=0){ if(cur.length>1) cur.splice(i,1); } else cur.push(k); state.P.soupIng=cur.join("+"); } else state.P[key]=b.dataset.k; if(state.P.soup<.05){ setSliderValue(SLIDERS.find(z=>z.k==="soup"),.5); } syncSoup(); dotsSoon(); schedule(); })));
 document.querySelectorAll("#layerSeg button").forEach(b=>b.addEventListener("click",()=>{state.P.layerC=b.dataset.k;
   if(state.P.layer<.05){state.P.layer=.5; inputs.layer.value=.5; showVal(SLIDERS.find(z=>z.k==="layer"));} syncFaults(); schedule();}));
 document.querySelectorAll("#spreadSeg button").forEach(b=>b.addEventListener("click",()=>{state.P.spreadC=b.dataset.k; syncFaults(); schedule();}));
@@ -3022,7 +3188,7 @@ view.addEventListener("click",e=>{ if(!aiming) return; const t=tapToPhoto(e); if
 // ---- Tabs: one category of controls at a time; the photo stays in view
 const TAB_OF={"Looks":"film","Film stock":"film","How expired":"film","Film speed":"film","Chemistry":"film",
   "White balance":"light","Adjust":"light","Retouch":"light","Grain and light":"light","Lens":"light",
-  "Film faults":"damage","Damage":"damage","Accidents":"damage",
+  "Film faults":"damage","Damage":"damage","Accidents":"damage","Film soup":"damage",
   "Camera type":"camera","Flash":"camera","In the camera":"camera","Instant film":"camera",
   "Developing":"dark","Printing":"dark","Crop":"crop","Develop the print":"develop","Print size":"develop"};
 // the sections are put in a sensible order within each tab (the page source has them in the order they were added)
