@@ -1245,6 +1245,21 @@ function develop(src, out, P, stock, SD, stamp){
   const soupPeel=(x,y)=>{ const u=x/(70*S)+vns(x/(40*S),y/(40*S),oSu+71)*.6, v=y/(70*S)+vns(x/(40*S)+3,y/(40*S),oSu+73)*.6;
     return vns(u,v,oSu+41)*.8+vns(x/(22*S),y/(22*S),oSu+47)*.14+vns(x/(6*S),y/(6*S),oSu+49)*.05; };
   const soupCr=(x,y)=>{ const a=1-Math.abs(vns(x/(2.6*S),y/(2.6*S),oSu+53)*2.6); return Math.pow(clamp(a,0,1),6); };
+  // Long thin seams across the frame where the gelatin split and re-stuck, broken and beaded like stitching (reticulation lines).
+  const suSeamAmt=su>0?Math.min(1,su*1.8)*(.15+.85*suRetK)*(suWh.lift>.9?1.15:1):0;
+  const suSeamR=rng(SD.soup*19+7), suSeams=[0,1,2,3].map((_,i)=>({y0:.1+.2*i+.06*suSeamR(), a:.04+.08*suSeamR(), w:.7+suSeamR()*.9, sl:.2+.5*suSeamR()}));
+  const soupSeam=(x,y)=>{ let m=0;
+    for(let i=0;i<suSeams.length;i++){ const q=suSeams[i];
+      const yc=(q.y0+q.a*vns(x/(W*.5),i*3.1,oSu+101)+.012*vns(x/(26*S),i*1.7,oSu+103)+q.sl*(x/W-.5)*.08)*H, d=Math.abs(y-yc)/(S*q.w);
+      if(d<1){ const line=1-d, bead=.5+.5*sstep(-.1,.3,vns(x/(3*S),i*5.3,oSu+107)), brk=sstep(-.3,-.05,vns(x/(W*.35),i*9.1,oSu+109)); const v=line*bead*brk; if(v>m) m=v; } }
+    return m; };
+  // Pale round droplets where liquid beaded on the emulsion and dried: a soft lighter disc with a faint darker rim.
+  const suDropAmt=su>0?Math.min(1,su*1.4)*.8:0, suDropR=rng(SD.soup*23+11);
+  const suDrops=Array.from({length:16},()=>({x:suDropR()*W,y:suDropR()*H,r:suShort*(.03+.07*suDropR()*suDropR()*1.6)}));
+  const soupDrop=(x,y)=>{ let v=0;
+    for(let i=0;i<suDrops.length;i++){ const q=suDrops[i], dx=x-q.x; if(dx>q.r||dx<-q.r) continue; const dy=y-q.y; if(dy>q.r||dy<-q.r) continue;
+      const d=Math.sqrt(dx*dx+dy*dy)/q.r; if(d>=1) continue; const e=1-d*d; v+=.42*e*e; }
+    return v; };
   const suHash=(i,j2,k)=>{ const h=Math.sin(i*127.1+j2*311.7+k*74.7+SD.soup*.13)*43758.5453; return h-Math.floor(h); };
   // cached noise fields (preview only; null means compute inline)
   const suKey=SD.soup+"_"+suIds.join("+")+"_"+(suBrush?1:0);
@@ -1254,6 +1269,8 @@ function develop(src, out, P, stock, SD, stamp){
   const fSuP = suLift>.02 ? coarseField("sup"+SD.soup, W,H,suQ,soupPeel) : null;
   const fSuJ = suLift>.02 ? coarseField("suj"+SD.soup, W,H,suQ*2,(x,y)=>vns(x/(26*S),y/(26*S),oSu+81)*.9) : null;
   const fSuJ2 = suLift>.02 ? coarseField("suj2"+SD.soup, W,H,suQ*2,(x,y)=>vns(x/(18*S),y/(18*S),oSu+87)*1.1) : null;
+  const fSuS = suSeamAmt>.02 ? cacheField("sus"+SD.soup, W,H,soupSeam) : null;
+  const fSuD = suDropAmt>.02 ? cacheField("sud"+SD.soup, W,H,soupDrop) : null;
   const fSuC = suCrack>0 ? cacheField("suc"+SD.soup, W,H,soupCr) : null;
   const fSt = st>0 ? cacheField("st"+sSt, W,H,(x,y)=>vns(x/stCell,y/stCell,o4)*.65+vns(x/stCell2,y/stCell2,o5)*.35) : null;
   const fSh = st>0 ? cacheField("sh"+sSt, W,H,(x,y)=>sstep(-.12,.12,vns(x/hCell,y/hCell,o6))) : null;
@@ -1317,7 +1334,8 @@ function develop(src, out, P, stock, SD, stamp){
       if(su>0){
         const n=cfAt(fSu,x,y);
         const m=sstep(suThr,suThr+suSoftW,n);
-        const ring=suI.tide*suWh.ring*sstep(suThr-.03,suThr-.004,n)*(1-sstep(suThr+.004,suThr+.03,n));
+        let ring=suI.tide*suWh.ring*sstep(suThr-.03,suThr-.004,n)*(1-sstep(suThr+.004,suThr+.03,n));
+        if(ring>0) ring*=.55+.9*sstep(-.15,.25,vns(x/(2.6*S),y/(2.6*S),oSu+5));   // beaded edge
         let cover=m;
         if(m>0||ring>0){
           const r0=r, g0=g, b0=b, hh=suVar===1?cfAt(fSuH,x,y):clamp(.5+(cfAt(fSuH,x,y)-.5)*suVar*2,0,1);
@@ -1325,8 +1343,10 @@ function develop(src, out, P, stock, SD, stamp){
           if(suMono){ wr=wg=wb=suWa; }
           // deeper inside a blotch the liquid sat longer
           const k=m*suK*(.75+.5*sstep(suThr,suThr+.25,n))*(1-suWh.sh*.6*clamp(.299*r+.587*g+.114*b,0,1)), rk=ring*suK*.55;
-          const l0=.299*r+.587*g+.114*b;
+          const l0=.299*r+.587*g+.114*b, lc=clamp(l0,0,1);
+          wb*=.75+.5*lc; wr*=1.2-.45*lc; wg*=1.15-.35*lc;   // dye layers fail unevenly by tone: highlights lose blue first (yellow), shadows go magenta
           r*=1-(k+rk)*wr; g*=1-(k+rk)*wg; b*=1-(k+rk)*wb;
+          if(!suMono){ b*=1-k*.8*lc*lc; r+=k*.1*lc*(1-r); g*=1-k*.26*(1-lc)*(1-lc); }   // Fuji-style drift: bright areas turn cream-yellow, darker areas lean magenta
           const l1=.299*r+.587*g+.114*b, back=(l0-l1)*(suMono?.3:suWh.back)+ring*suK*.06;
           r+=back; g+=back; b+=back;
           { const fl=m*suK*.16; r+=(.46-r)*fl; g+=(.46-g)*fl; b+=(.46-b)*fl; suGB=suRet+m*suK*.9*suWh.gr; }   // washed layers: flatter and grainier
@@ -1346,6 +1366,8 @@ function develop(src, out, P, stock, SD, stamp){
             }
           }
         }
+        if(suSeamAmt>.02){ const sv=(fSuS?fSuS[j]:soupSeam(x,y))*suSeamAmt; if(sv>.01){ const dk=1-sv*.24; r*=dk; g*=dk*.98; b*=dk*.96; } }
+        if(suDropAmt>.02){ const dv=(fSuD?fSuD[j]:soupDrop(x,y))*suDropAmt; if(dv>.003){ r+=dv*(1-r)*.28; g+=dv*(1-g)*.24; b+=dv*(1-b)*.12; } }
         if(suCrack>0){ const cr=(fSuC?fSuC[j]:soupCr(x,y))*suCrack*(.3+.7*m)*.3*Math.min(1,su*2); r*=1-cr; g*=1-cr; b*=1-cr; }
         if(suDots>0){ // specks where crystals or bubbles sat
           const cx=Math.floor(x/suDotCell), cy=Math.floor(y/suDotCell), hz=suHash(cx,cy,1);
@@ -2212,11 +2234,12 @@ function scaled(img, maxEdge){
 const $=id=>document.getElementById(id);
 const view=$("view");
 let src={full:null, prev:null, drag:null, thumb:null, name:"sample"};
+let Keep=null;   // autosave of the open photo and settings, set up below
 const src2={img:null, full:null, name:""};
 
 function setSource(canvasFull, name){
   state.spots=[]; HCACHE.clear(); CCACHE.clear(); if(state.crop) Object.assign(state.crop,{ratio:"free",portrait:false,angle:0,rot:0,flip:false,rect:{x:0,y:0,w:1,h:1}}); if(typeof syncCrop==="function") syncCrop(); if(typeof syncSpots==="function") syncSpots();
-  src.full=canvasFull; setTimeout(()=>{ if(typeof syncUp==="function") syncUp(); },0); src.prev=scaled(canvasFull,1000); dragSrc.length=0; warmed.clear(); FCACHE.clear(); fcBytes=0; LCACHE.forEach(c=>{c.width=c.height=0;}); LCACHE.clear(); src.thumb=scaled(canvasFull,200); src.name=name;
+  src.full=canvasFull; src.name=name; if(Keep) Keep.newPhoto(); setTimeout(()=>{ if(typeof syncUp==="function") syncUp(); },0); src.prev=scaled(canvasFull,1000); dragSrc.length=0; warmed.clear(); FCACHE.clear(); fcBytes=0; LCACHE.forEach(c=>{c.width=c.height=0;}); LCACHE.clear(); src.thumb=scaled(canvasFull,200); src.name=name;
   renderThumbs(); schedule();
 }
 
@@ -2458,7 +2481,7 @@ document.addEventListener("input",e=>{ const t=e.target; if(t&&t.type==="range")
 // (including moving the dot), so after each drag render the next one waits for a gap about as long as the
 // render itself took, which keeps the page responsive about two thirds of the time and the dot moving smoothly.
 let lastDraw=0, lastEnd=0;
-function schedule(){
+function schedule(){ if(Keep) Keep.later();
   if(!state.dragging) updateTabDots();   // right away, so a dot never waits for a slow render
   if(pending) return; pending=true;
   const go=()=>requestAnimationFrame(()=>{ pending=false; const t0=performance.now(); draw(); refreshWaves(); lastEnd=performance.now(); lastDraw=lastEnd-t0; if(!state.dragging) dotsSoon(); });
@@ -3227,6 +3250,54 @@ setEmpty(true);
 ["click","pointerdown","input","change"].forEach(ev=>$("panel").addEventListener(ev,e=>{ if(src.prev) return;
   const sec=e.target.closest&&e.target.closest(".sec"); if(!sec) return;
   if(sec.dataset.tab==="crop" || e.target.closest("#healBtn")){ e.stopPropagation(); e.preventDefault(); if(ev==="click") toast("Open a photo first."); } },true));
+
+// ---- Keep your work: the photo and every setting are saved on this device as you edit, and come back
+// after the app is switched away from or reloaded. Stored in IndexedDB (a photo is too big for localStorage).
+Keep=(()=>{
+  const DB="expired-session", ST="kv"; let dbp=null, photoId=0, savedPhotoId=-1, restoring=false, t=0, dead=false;
+  const open=()=>dbp||(dbp=new Promise((res,rej)=>{ try{ const q=indexedDB.open(DB,1); q.onupgradeneeded=()=>q.result.createObjectStore(ST); q.onsuccess=()=>res(q.result); q.onerror=()=>rej(q.error); }catch(e){ rej(e); } }));
+  const put=(k,v)=>open().then(db=>new Promise((res,rej)=>{ const tx=db.transaction(ST,"readwrite"); tx.objectStore(ST).put(v,k); tx.oncomplete=res; tx.onerror=()=>rej(tx.error); }));
+  const get=k=>open().then(db=>new Promise((res,rej)=>{ const q=db.transaction(ST).objectStore(ST).get(k); q.onsuccess=()=>res(q.result); q.onerror=()=>rej(q.error); }));
+  const del=k=>open().then(db=>new Promise(res=>{ const tx=db.transaction(ST,"readwrite"); tx.objectStore(ST).delete(k); tx.oncomplete=res; tx.onerror=res; }));
+  const meta=()=>({snap:takeSnapshot(), crop:JSON.parse(JSON.stringify(state.crop)), spots:JSON.parse(JSON.stringify(state.spots)), upscale:state.upscale||1,
+    look:state.look||null, lookPrev:state.lookPrev||null, tab:state.tab||"film", name:src.name||"photo", at:Date.now()});
+  async function save(){
+    if(dead||restoring||!src.full) return;
+    try{
+      if(savedPhotoId!==photoId){
+        const blob=await new Promise(r=>src.full.toBlob(r,"image/jpeg",.92)); if(!blob) return;
+        await put("photo",blob); savedPhotoId=photoId; }
+      await put("meta",meta());
+    }catch(e){ dead=true; }   // storage unavailable here (private mode, sandboxed viewer): carry on without it
+  }
+  function later(){ if(restoring||dead) return; clearTimeout(t); t=setTimeout(save,1200); }
+  function newPhoto(){ photoId++; }
+  function now(){ clearTimeout(t); save(); }
+  async function restore(){
+    let blob,m; try{ [blob,m]=await Promise.all([get("photo"),get("meta")]); }catch(e){ dead=true; return false; }
+    if(!blob||!m||!m.snap) return false;
+    restoring=true; $("busy").textContent="Restoring your photo…"; $("busy").classList.add("on");
+    try{
+      const url=URL.createObjectURL(blob);
+      const im=await new Promise((res,rej)=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=rej; i.src=url; });
+      if(src.full){ URL.revokeObjectURL(url); return false; }   // the person already opened something else
+      setSource(scaled(im,4096), m.name||"photo"); URL.revokeObjectURL(url);
+      setEmpty(false);
+      Object.assign(state.crop,m.crop||{}); state.spots=m.spots||[]; state.upscale=m.upscale||1;
+      state.look=m.look; state.lookPrev=m.lookPrev;
+      applySnapshot(m.snap); syncLooks(); syncCrop(); syncSpots(); syncUp(); HCACHE.clear(); CCACHE.clear(); schedule();
+      showTab(m.tab&&m.tab!=="crop"?m.tab:"film");
+      savedPhotoId=photoId; toast("Picked up where you left off.");
+      return true;
+    }catch(e){ return false; }
+    finally{ restoring=false; $("busy").classList.remove("on"); $("busy").textContent="Developing…"; }
+  }
+  async function clear(){ try{ await del("photo"); await del("meta"); }catch(e){} }
+  return {later,now,newPhoto,restore,clear};
+})();
+document.addEventListener("visibilitychange",()=>{ if(document.hidden) Keep.now(); });
+window.addEventListener("pagehide",()=>Keep.now());
+if(!(navigator.webdriver && !/keep/.test(location.search))) Keep.restore();   // automated test runs start clean unless asked
 if(document.fonts) document.fonts.ready.then(()=>{ if(state.stamp) schedule(); });
 })();
 </script>

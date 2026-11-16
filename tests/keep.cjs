@@ -1,0 +1,13 @@
+const {chromium}=require('playwright');(async()=>{const b=await chromium.launch();const ctx=await b.newContext({viewport:{width:420,height:860}});const e=[];
+let p=await ctx.newPage();p.on('pageerror',x=>e.push(x.message));
+await p.goto('file:///home/claude/test.html?clean&keep');await p.waitForTimeout(800);
+await p.setInputFiles('#file','/home/claude/hill.jpg');await p.waitForTimeout(2500);
+await p.evaluate(()=>{const T=__T;T.state.P.soup=.6;T.state.P.grain=1.4;T.state.P.soupIng="citrus+tea";T.state.crop.ratio="free";T.state.look=null;T.schedule&&T.schedule();document.dispatchEvent(new Event('visibilitychange'));});
+await p.waitForTimeout(500);
+await p.evaluate(()=>{Object.defineProperty(document,'hidden',{value:true,configurable:true});document.dispatchEvent(new Event('visibilitychange'));});await p.waitForTimeout(1500);
+const A=await p.evaluate(()=>[__T.state.P.soup,__T.state.P.grain,__T.state.P.soupIng]);
+await p.close();
+p=await ctx.newPage();p.on('pageerror',x=>e.push(x.message));
+await p.goto('file:///home/claude/test.html?clean&keep');await p.waitForTimeout(3500);
+const B=await p.evaluate(()=>[__T.state.P.soup,__T.state.P.grain,__T.state.P.soupIng,document.querySelector('#view').width,document.querySelector('#view').parentNode.className]);
+console.log(A,B,e);await b.close();})();
