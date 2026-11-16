@@ -429,10 +429,11 @@ a.btn{text-decoration:none}
 
     <div class="sec">
       <h2>Camera type</h2>
-      <div class="seg" role="group" aria-label="Camera type" id="camSeg" style="grid-template-columns:repeat(3,1fr)">
+      <div class="seg" role="group" aria-label="Camera type" id="camSeg" style="grid-template-columns:repeat(2,1fr)">
         <button type="button" data-k="standard" aria-pressed="true">Standard</button>
         <button type="button" data-k="disposable" aria-pressed="false">Disposable</button>
         <button type="button" data-k="pinhole" aria-pressed="false">Pinhole</button>
+        <button type="button" data-k="lomo" aria-pressed="false">Toy / Lomo</button>
       </div>
       <p class="hint" id="camHint" style="margin:8px 0 10px"></p>
       <div class="ctrls" id="g-disp"></div>
@@ -611,6 +612,18 @@ const STOCKS = [
    sat:.82, con:.9, fogC:[.72,.62,.64], sh:[-.02,.01,.05], hi:[.07,-.02,.02], grain:.2, gsize:.3, hal:.12, leak:.15, stain:.15, stainC:[1.08,.95,1.0]},
   {id:"xpro", iso:100, name:"Slide 100 X-Pro", code:"SL 100X", note:"Slide film developed as a negative. Punchy, yellow-green, crushed blues.", cross:true,
    sat:1.18, con:1.2, fogC:[.35,.45,.3], sh:[-.01,.02,.07], hi:[.03,.045,-.075], grain:.3, gsize:.35, hal:.1, leak:.2, stain:.15, stainC:[1.05,1.1,.7]},
+  {id:"violet", iso:400, name:"Violet Shift 400", code:"VS 400", mx:[.5,.5,0, .2,.25,.55, .1,.6,.3],
+   note:"A colour-swap negative film. Greens turn purple and pink, reds go brown and skies go deep teal, while the scene itself still reads normally.",
+   sat:1.28, con:1.1, fogC:[.5,.42,.56], sh:[.02,-.03,.05], hi:[.04,-.01,.03], grain:.3, gsize:.4, hal:.12, leak:.2, stain:.2, stainC:[1.05,.85,1.1]},
+  {id:"teal", iso:400, name:"Teal Shift 400", code:"TS 400", mx:[1.1,-.45,.35, -.65,1.34,.31, -.26,1.08,.18],
+   note:"A colour-swap negative film. Foliage turns bright cyan, reds go crimson and magenta, shadows sink to deep indigo, and bright skies blow out to white.",
+   sat:1.15, con:1.3, fogC:[.3,.42,.5], sh:[.05,-.04,.12], hi:[0,.03,0], grain:.3, gsize:.4, hal:.12, leak:.2, stain:.2, stainC:[.9,1.05,1.1]},
+  {id:"noir", iso:400, name:"Noir Colour 400", code:"NC 400", pop:.85,
+   note:"High contrast with a muted palette: everyday colours go quiet and only strong ones come through. Like colour film shot in noir.",
+   sat:.62, con:1.3, fogC:[.4,.42,.44], sh:[-.01,.01,.03], hi:[.02,0,-.02], grain:.4, gsize:.45, hal:.08, leak:.15, stain:.2, stainC:[1,1,1.05]},
+  {id:"redscale", iso:100, name:"Redscale 100", code:"RS 100", rs:true,
+   note:"Film loaded backwards so the light passes through its orange base first. Everything turns red, orange and yellow: bright areas yellow, midtones orange, shadows deep red.",
+   sat:1, con:1.12, fogC:[.62,.34,.18], sh:[.04,-.01,-.04], hi:[.05,.03,-.08], grain:.4, gsize:.45, hal:.2, leak:.3, stain:.2, stainC:[1.1,.9,.6]},
   {id:"tungsten", iso:500, name:"Cine Tungsten 500", code:"CT 500T", note:"Tungsten cinema film shot in daylight. Cold blue cast with red halation around lights.",
    sat:.95, con:1.05, fogC:[.32,.42,.58], sh:[-.05,0,.09], hi:[-.03,.02,.07], grain:.45, gsize:.6, hal:.65, leak:.2, stain:.15, stainC:[.9,.95,1.1]},
   {id:"instant", iso:640, name:"Instant Square", layerC:"yellow", code:"IN SQ", note:"Expired instant film. Washed out and creamy, with chemical blotches creeping in from the edges.", edgeStain:true, debris:"camera",
@@ -810,7 +823,7 @@ function rawOverrides(){ const o={overx:0, push:0, frame:false, spread:0, camTyp
 function baseP(){ const D=derive(); return state.raw? Object.assign(D,rawOverrides()) : D; }
 // the stock with its own colour taken out, used while the photo is still clean
 function stockFor(){ const s=state.stock; if(!state.raw) return s;
-  return Object.assign({},s,{sat:1, con:1, mono:false, cross:false, edgeStain:false, hal:0, neutral:true}); }
+  return Object.assign({},s,{sat:1, con:1, mono:false, cross:false, mx:null, rs:false, pop:0, edgeStain:false, hal:0, neutral:true}); }
 function leaveRaw(){ if(!state.raw) return false; state.raw=false; return true; }
 
 /* ---------- Noise ---------- */
@@ -945,8 +958,8 @@ function lensStage(ctx,out,src,W,H,P,SD,ct){
   if(canCache && LENSC.src===src && LENSC.key===key && LENSC.c){ ctx.drawImage(LENSC.c,0,0); return; }
   const R=Math.hypot(W/2,H/2), cx=W/2, cy=H/2;
   const radial=(stops)=>{ const g=ctx.createRadialGradient(cx,cy,0,cx,cy,R); stops.forEach(([t,c])=>g.addColorStop(t,c)); return g; };
-  if(ct==="disposable"){
-    const sf=P.dispSoft||0, ca=P.dispCA||0, dist=P.dispDist||0, vg=P.dispVig||0;
+  if(ct==="disposable"||ct==="lomo"){
+    const lo=ct==="lomo", sf=P.dispSoft||0, ca=P.dispCA||0, dist=P.dispDist||0, vg=Math.min(1,(P.dispVig||0)*(lo?1.3:1));
     if(ca>.005||dist>.005){ // distortion and lateral colour: remap each channel at its own magnification
       const im=ctx.getImageData(0,0,W,H), q=im.data, s0=new Uint8ClampedArray(q), kD=.075*dist, kC=.0055*ca, nrm=1/(1+kD);
       const samp=(fx,fy,c)=>{ if(fx<0)fx=0; if(fy<0)fy=0; if(fx>W-1.001)fx=W-1.001; if(fy>H-1.001)fy=H-1.001;
@@ -964,7 +977,7 @@ function lensStage(ctx,out,src,W,H,P,SD,ct){
       const gl=softBlur(out,16,"dspg"); ctx.save(); ctx.globalCompositeOperation="screen"; ctx.globalAlpha=sf*.09; ctx.drawImage(gl,0,0); ctx.restore(); // veiling glow from the uncoated plastic
     }
     if(vg>.005){ ctx.save(); ctx.globalCompositeOperation="multiply";
-      const st=[]; for(let i=0;i<=10;i++){ const t=i/10, v=1-vg*.62*Math.pow(Math.max(0,(t-.25)/.75),1.7); st.push([t,`rgb(${Math.round(255*v)},${Math.round(255*v)},${Math.round(255*v)})`]); }
+      const st=[]; for(let i=0;i<=10;i++){ const t=i/10, v=1-vg*.62*Math.pow(Math.max(0,(t-(lo?.12:.25))/(lo?.88:.75)),lo?1.45:1.7); st.push([t,`rgb(${Math.round(255*v)},${Math.round(255*v)},${Math.round(255*v)})`]); }
       ctx.fillStyle=radial(st); ctx.fillRect(0,0,W,H); ctx.restore(); }
   } else {
     const ps=P.pinSize==null?.5:P.pinSize, pv=P.pinVig||0, pg=P.pinGlow||0, pm=P.pinMove||0, pr=P.pinRecip||0, paper=!!P.pinPaper, M=Math.max(W,H), S=M/1000;
@@ -1042,7 +1055,7 @@ function develop(src, out, P, stock, SD, stamp){
   ctx.drawImage(src,0,0);
   const S=Math.max(W,H)/1000, M=Math.min(W,H);
   // What the camera itself does: a disposable's plastic lens or a pinhole in place of a lens
-  { const ct=P.camType||"standard"; if(ct==="disposable"||ct==="pinhole") lensStage(ctx,out,src,W,H,P,SD,ct); }
+  { const ct=P.camType||"standard"; if(ct==="disposable"||ct==="pinhole"||ct==="lomo") lensStage(ctx,out,src,W,H,P,SD,ct); }
   const pinPaper=P.camType==="pinhole"&&!!P.pinPaper;
   if(pinPaper){ if(!stock.mono) stock=Object.assign({},STOCKS.find(z=>z.id==="mono"),{hal:.02}); P=Object.assign({},P,{shift:0}); } // a paper negative is black and white, with no ageing dye shifts
   // Softness: cheap-lens blur, stronger toward the corners. Done before grain, which stays sharp.
@@ -1094,7 +1107,7 @@ function develop(src, out, P, stock, SD, stamp){
   const gCell=Math.max(.5,(.55+P.gsize*2.2)*S), gCell2=gCell*2.4;
   const stCell=230*S, stCell2=stCell*.42;
   const gS=SD.grain, o1=gS*37&NM, o2=gS*91+300&NM, o3=gS*53+600&NM, o4=sSt*17+150&NM, o5=sSt*71+800&NM;
-  const sat=stock.sat*(1-.25*P.fade), con=stock.con*(1-.5*P.fade);
+  const lomoCam=P.camType==="lomo", sat=stock.sat*(1-.25*P.fade)*(lomoCam?1.2:1), con=stock.con*(1-.5*P.fade)*(lomoCam?1.16:1);   // a compact auto camera's punchy, shadow-crushing look
   const fog=P.fog, fr=stock.fogC[0]*fog, fg=stock.fogC[1]*fog, fb=stock.fogC[2]*fog, keep=1-fog*.7;
   const cs=P.shift*3, sh=stock.sh, hi=stock.hi;
   const tr=P.tint*.085, tg=-P.tint*.15, tb=P.tint*.085;
@@ -1103,7 +1116,7 @@ function develop(src, out, P, stock, SD, stamp){
   const sc2=stock.stainC2||[1+(sc[2]-1)*.6,1+(sc[1]-1)*.6,1+(sc[0]-1)*.6];
   const stLo=.21-.14*st, stHi=stLo+.1, stK=Math.min(1,st*1.5), o6=sSt*29+450&NM, hCell=stCell*.8;
   const vig=P.vig*.75, gr=P.grain*.3*(pinPaper?.45:1), chroma=stock.mono?0:.4;
-  const mono=!!stock.mono, cross=!!stock.cross, edgeStain=!!stock.edgeStain;
+  const mono=!!stock.mono, cross=!!stock.cross, edgeStain=!!stock.edgeStain, mxm=stock.mx||null, redS=!!stock.rs, pop=stock.pop||0;
   // Exposure in stops (±2), applied in linear light with a soft highlight shoulder
   const EL=new Float32Array(256), ek=Math.pow(2,(P.exp||0)*2);
   const plainEL=!!stock.neutral&&ek===1; // a clean photo at 0 EV passes straight through
@@ -1305,13 +1318,16 @@ function develop(src, out, P, stock, SD, stamp){
       if(flP>0){ r=d[p]*I255; g=d[p+1]*I255; b=d[p+2]*I255; }   // the flash pass has already applied exposure and white balance
       else { r=EL[d[p]]*wbR; g=EL[d[p+1]]*wbG; b=EL[d[p+2]]*wbB; }
       if(mono){const l=.3*r+.59*g+.11*b; r=g=b=l;}
+      if(mxm){ const r1=mxm[0]*r+mxm[1]*g+mxm[2]*b, g1=mxm[3]*r+mxm[4]*g+mxm[5]*b, b1=mxm[6]*r+mxm[7]*g+mxm[8]*b; r=r1; g=g1; b=b1; if(r<0) r=0; if(g<0) g=0; if(b<0) b=0; }   // colour-swap film: each dye layer answers to a different part of the spectrum
+      else if(redS){ const l0=.3*r+.59*g+.11*b; r=r*.15+.85*Math.min(1,l0*1.3+.04); g=g*.1+.9*Math.pow(l0,1.45)*.92; b=b*.05+.95*Math.pow(l0,3.2)*.4; }   // shot through the orange base: tone sets the hue
       if(cross){
         r=r*.4+r*r*(3-2*r)*.6*1.04;
         g=g*.5+g*g*(3-2*g)*.5;
         b=.1+b*.74;
       }
       let l=.299*r+.587*g+.114*b;
-      r=l+(r-l)*sat; g=l+(g-l)*sat; b=l+(b-l)*sat;
+      let sa=sat; if(pop){ const cm=Math.max(r,g,b)-Math.min(r,g,b); sa=sat*(1-pop+pop*Math.min(2.2,cm*3.2)); }   // muted overall, but strong colours still pop
+      r=l+(r-l)*sa; g=l+(g-l)*sa; b=l+(b-l)*sa;
       r=(r-.5)*con+.5; g=(g-.5)*con+.5; b=(b-.5)*con+.5;
       l=clamp(.299*r+.587*g+.114*b,0,1);
       const ws=(1-l)*(1-l), wh=l*l;
@@ -1597,7 +1613,11 @@ function develop(src, out, P, stock, SD, stamp){
   // Light leaks: light getting past a worn door seal or a fogged film edge.
   // Each leak has a coloured falloff plus a hot, near-white core that blows out.
   if(P.leak>0.01){
-    const R=rng(SD.leak*7919+13), cols=[[255,90,20],[255,40,25],[255,160,50],[240,60,110],[255,115,35]];
+    // The leak is light, so on a colour-swap film it goes through the same dye mapping as the picture: orange light
+    // comes out magenta or crimson, and the yellow-green end of a leak comes out aqua.
+    const mxL=stock.mx, mapL=c=>{ if(!mxL) return c; const q=i=>Math.max(0,Math.min(255,Math.round(mxL[i*3]*c[0]+mxL[i*3+1]*c[1]+mxL[i*3+2]*c[2]))); return [q(0),q(1),q(2)]; };
+    const R=rng(SD.leak*7919+13), cols=(mxL?[[210,255,70],[210,255,70],[210,255,70],[255,235,70],[255,235,70]]:[]).concat([[255,90,20],[255,40,25],[255,160,50],[240,60,110],[255,115,35]]).map(mapL);
+    const cC=mapL([255,225,150]), cM=mapL([255,160,70]), cE=mapL([255,120,40]), cB=mapL([255,210,130]), cB2=mapL([255,200,120]);
     const lk=P.leak, n=1+Math.floor(R()*2.6)+Math.round(lk*1.0), L=Math.max(W,H);
     ctx.save();
     for(let i=0;i<n;i++){
@@ -1613,7 +1633,7 @@ function develop(src, out, P, stock, SD, stamp){
       // hot core burns toward yellow-white
       ctx.globalCompositeOperation="lighter";
       const cr=rad*(.25+.3*lk), g2=ctx.createRadialGradient(cx,cy,0,cx,cy,cr);
-      g2.addColorStop(0,`rgba(255,225,150,${.55*lk})`); g2.addColorStop(.5,`rgba(255,160,70,${.26*lk})`); g2.addColorStop(1,"rgba(255,120,40,0)");
+      g2.addColorStop(0,`rgba(${cC},${.55*lk})`); g2.addColorStop(.5,`rgba(${cM},${.26*lk})`); g2.addColorStop(1,`rgba(${cE},0)`);
       ctx.fillStyle=g2; ctx.fillRect(0,0,W,H);
     }
     if(R()<.75){ // vertical band from a fogged film edge
@@ -1624,7 +1644,7 @@ function develop(src, out, P, stock, SD, stamp){
       ctx.fillStyle=lg; ctx.fillRect(0,0,W,H);
       ctx.globalCompositeOperation="lighter";
       const lg2=ctx.createLinearGradient(x0-w*.3,0,x0+w*.3,0);
-      lg2.addColorStop(0,"rgba(255,200,120,0)"); lg2.addColorStop(.5,`rgba(255,210,130,${.3*lk})`); lg2.addColorStop(1,"rgba(255,200,120,0)");
+      lg2.addColorStop(0,`rgba(${cB2},0)`); lg2.addColorStop(.5,`rgba(${cB},${.3*lk})`); lg2.addColorStop(1,`rgba(${cB2},0)`);
       ctx.fillStyle=lg2; ctx.fillRect(0,0,W,H);
     }
     ctx.restore();
@@ -3186,13 +3206,16 @@ const FLASH_HINT={off:"No flash: the scene is lit by the light that was there.",
   slow:"Slow sync (dragging the shutter): the flash freezes the subject while the ambient light smears into ghostly motion trails."};
 const CAM_HINT={standard:"A normal camera lens: sharp, with only the lens effects you set elsewhere.",
   disposable:"A single-use camera's plastic lens at about f/10: sharpest in the middle, softer and colour-fringed toward the corners, with a strong vignette.",
+  lomo:"A toy or compact-auto camera: sharp in the middle with soft, fringed edges, a hard dark vignette, and a punchy look with extra saturation, crushed shadows and clipped highlights.",
   pinhole:"No lens, just a tiny hole: the same gentle softness at every distance, a diffraction glow around bright areas, corners that fall away, and exposures long enough for the film to lose speed and for any nudge to leave a ghost."};
 function syncCam(){
   const t=state.P.camType||"standard";
   document.querySelectorAll("#camSeg button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.k===t?"true":"false"));
-  $("camHint").textContent=CAM_HINT[t]; $("g-disp").style.display=t==="disposable"?"":"none"; $("pinBox").style.display=t==="pinhole"?"":"none"; $("pinPaper").checked=!!state.P.pinPaper;
+  $("camHint").textContent=CAM_HINT[t]; $("g-disp").style.display=(t==="disposable"||t==="lomo")?"":"none"; $("pinBox").style.display=t==="pinhole"?"":"none"; $("pinPaper").checked=!!state.P.pinPaper;
 }
-document.querySelectorAll("#camSeg button").forEach(b=>b.addEventListener("click",()=>{ state.P.camType=b.dataset.k; syncCam(); schedule();
+document.querySelectorAll("#camSeg button").forEach(b=>b.addEventListener("click",()=>{ const was=state.P.camType; state.P.camType=b.dataset.k;
+  if(b.dataset.k==="lomo" && was!=="lomo") Object.entries({dispSoft:.45,dispCA:.3,dispDist:.25,dispVig:.8}).forEach(([k,v])=>{ state.P[k]=v; if(inputs[k]){ inputs[k].value=v; showVal(SLIDERS.find(z=>z.k===k)); } });
+  syncCam(); schedule();
   if(typeof refreshWaves==="function") requestAnimationFrame(()=>refreshWaves(true)); }));
 function syncFlash(){
   const t=state.P.flashType||"off";

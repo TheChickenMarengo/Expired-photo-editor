@@ -1,0 +1,5 @@
+const {chromium}=require('playwright');(async()=>{const b=await chromium.launch();const p=await b.newPage({viewport:{width:1500,height:900}});
+await p.goto('file:///home/claude/test.html?clean');await p.waitForTimeout(600);await p.setInputFiles('#file','room.jpg');await p.waitForTimeout(2500);
+const urls=await p.evaluate(()=>{const T=__T;const st=T.STOCKS.find(s=>s.id==='teal');const out=[];for(const sd of [11,40,77,123,201,305]){const P=Object.assign({},T.effP(),{leak:.7,stains:0});const c=document.createElement('canvas');T.develop(T.src.prev,c,P,st,Object.assign({},T.state.seeds,{leak:sd}),false);const t=document.createElement('canvas');t.width=480;t.height=Math.round(c.height*480/c.width);t.getContext('2d').drawImage(c,0,0,t.width,t.height);out.push(t.toDataURL('image/png'));}return out;});
+await p.setContent('<body style="margin:0"><div id=g style="display:grid;grid-template-columns:repeat(3,480px);gap:4px"></div></body>');
+await p.evaluate(t=>{g.innerHTML=t.map(u=>`<img src="${u}">`).join('')},urls);await p.waitForTimeout(300);await (await p.$('#g')).screenshot({path:'leakgrid.png'});await b.close();})();

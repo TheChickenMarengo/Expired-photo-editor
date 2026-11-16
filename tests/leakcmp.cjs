@@ -1,0 +1,6 @@
+const {chromium}=require('playwright');(async()=>{const b=await chromium.launch();const p=await b.newPage({viewport:{width:1500,height:900}});
+await p.goto('file:///home/claude/test.html?clean');await p.waitForTimeout(600);await p.setInputFiles('#file','hill.jpg');await p.waitForTimeout(2500);
+const urls=await p.evaluate(()=>{const T=__T;const g=document.createElement('canvas');g.width=480;g.height=320;const x=g.getContext('2d');x.fillStyle='#777';x.fillRect(0,0,480,320);
+const out=[];for(const id of ['kodak','violet','teal']){const st=T.STOCKS.find(s=>s.id===id)||T.STOCKS[0];const P=Object.assign({},T.effP(),{leak:.8,stains:0,fade:0,grain:0,dust:0,fib:0,scratch:0});const c=document.createElement('canvas');T.develop(g,c,P,st,Object.assign({},T.state.seeds,{leak:40}),false);out.push(st.id+':'+c.toDataURL('image/png'));}return out;});
+await p.setContent('<body style="margin:0;background:#000"><div id=g style="display:grid;grid-template-columns:repeat(3,480px);gap:4px"></div></body>');
+await p.evaluate(t=>{g.innerHTML=t.map(u=>`<img src="${u.split(':').slice(1).join(':')}">`).join('')},urls);await p.waitForTimeout(300);await (await p.$('#g')).screenshot({path:'leakcmp.png'});console.log(urls.map(u=>u.split(':')[0]));await b.close();})();

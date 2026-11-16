@@ -1,7 +1,7 @@
 // Expired: offline support.
 // The app shell is cached on install; the page itself is fetched fresh when online
 // (so updates arrive) and served from the cache when offline. Fonts are cached as they load.
-const CACHE = "expired-v35";
+const CACHE = "expired-v39";
 const SHELL = ["./", "./index.html", "./manifest.webmanifest", "./favicon.png",
   "./icons/icon-192.png", "./icons/icon-512.png", "./icons/icon-maskable-512.png", "./icons/apple-touch-icon.png"];
 
