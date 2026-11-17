@@ -1,0 +1,6 @@
+const {chromium}=require('playwright');(async()=>{const b=await chromium.launch();const p=await b.newPage({viewport:{width:1100,height:800}});const e=[];p.on('pageerror',x=>e.push(x.message));
+await p.goto('file:///home/claude/test.html?clean');await p.waitForTimeout(600);await p.setInputFiles('#file','room.jpg');await p.waitForTimeout(2500);
+await p.evaluate(()=>document.querySelector('[data-tab=develop]').click());await p.waitForTimeout(500);
+await p.click('#skipDev');await p.waitForTimeout(600);const info=await p.evaluate(()=>{const el=document.getElementById('s-pframe');return !!el});
+const sizes=[];for(const v of [0,.15,.5,1]){await p.evaluate(v=>{const el=document.getElementById('s-pframe');el.value=v;el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}));},v);await p.waitForTimeout(900);sizes.push(await p.evaluate(()=>[document.getElementById('view').width,document.getElementById('view').height]));if(v===.15){await p.screenshot({path:'frm.png'});} if(v===1){await p.evaluate(()=>document.getElementById('s-pframe').scrollIntoView({block:'center'}));await p.waitForTimeout(300);await p.screenshot({path:'frm2.png'});}}
+console.log(info,JSON.stringify(sizes),e);await b.close();})();

@@ -121,6 +121,7 @@ header{display:flex;align-items:baseline;justify-content:space-between;gap:12px;
 .frame{position:relative;overflow:hidden;display:flex;justify-content:center;align-items:center;background:var(--stage);border-radius:2px;min-height:160px}
 #view.picking{cursor:crosshair;outline:2px dashed var(--accent);outline-offset:3px}
 #view{display:block;max-width:100%;max-height:36vh;height:auto;width:auto}
+#view.framed{box-shadow:0 0 0 1px var(--line)}   /* a white print on a white page still needs an edge */
 .busy{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:var(--scrim);font-family:var(--mono);font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
 .busy.on{display:flex}
 .frame.empty{min-height:min(36vh,300px)}
@@ -574,6 +575,12 @@ a.btn{text-decoration:none}
     </div>
 
     <div class="sec">
+      <h2>Frame</h2>
+      <div class="ctrls" id="g-frm"></div>
+      <p class="hint" style="margin:8px 0 0">A plain white border around the finished print. Slide it up for a wider frame.</p>
+    </div>
+
+    <div class="sec">
       <h2>Print size</h2>
       <div class="seg" role="group" aria-label="Upscale" id="upSeg" style="grid-template-columns:repeat(4,1fr)">
         <button type="button" data-k="1" aria-pressed="true">Original</button>
@@ -671,6 +678,7 @@ const SLIDERS = [
   {k:"devAg", label:"Agitation", min:0, max:1, step:.01, g:"devp", noToggle:true, fmt:v=> v<.2?"None":v<.5?"Occasional":v<=.8?"Regular":"Constant"},
   {k:"devFresh", label:"Developer freshness", min:0, max:1, step:.01, g:"devp", noToggle:true, fmt:v=> v>=.95?"Fresh":v>=.6?"Used":v>=.3?"Tired":"Exhausted"},
   {k:"devFix", label:"Fixer time", min:0, max:1, step:.01, g:"devp2", noToggle:true, fmt:v=> v>=.98?"Full (5:00)":Math.floor(v*300/60)+":"+String(Math.round(v*300)%60).padStart(2,"0")},
+  {k:"pframe", label:"White frame", min:0, max:1, step:.01, g:"frm", noToggle:true, fmt:v=> v<.01?"None":v<.2?"Thin":v<.6?"Medium":"Wide"},
   {k:"devWash", label:"Wash", min:0, max:1, step:.01, g:"devp2", noToggle:true, fmt:v=> v>=.98?"Full (10 min)":Math.max(0,Math.round(v*10))+" min"},
   {k:"wbT", label:"Temperature", min:-1, max:1, step:.01, g:"wb", fmt:v=> Math.abs(v)<.005 ? "0" : (v>0?"Warmer ":"Cooler ")+Math.round(Math.abs(v)*100)},
   {k:"wbG", label:"Tint", min:-1, max:1, step:.01, g:"wb", fmt:v=> Math.abs(v)<.005 ? "0" : (v>0?"Magenta ":"Green ")+Math.round(Math.abs(v)*100)},
@@ -802,6 +810,7 @@ function derive(){
     surgeI:.6, bromideI:.6, airbellI:.6, kinkI:.6, waterI:.6, sabLines:.6, burnSize:.5, dodgeSize:.5, fixerI:.6, dichroicI:.6,
     devT: state.P?state.P.devT:1, devTemp: state.P?state.P.devTemp:0, devAg: state.P?state.P.devAg:.65,
     devExp: state.P?state.P.devExp:10, devGrade: state.P?state.P.devGrade:2, devType: state.P?state.P.devType:"standard",
+    pframe: state.P&&state.P.pframe!=null?state.P.pframe:0,
     devFresh: state.P?state.P.devFresh:1, devDry: state.P?state.P.devDry:false,
     devStop: state.P?state.P.devStop:true, devFix: state.P?state.P.devFix:1, devWash: state.P?state.P.devWash:1,
     flashType: state.P?state.P.flashType:"off", flashPow: state.P?state.P.flashPow:.75, flashFall: state.P?state.P.flashFall:.5,
@@ -839,7 +848,7 @@ function leaveRaw(){ if(!state.raw) return false; state.raw=false; return true; 
 
 /* ---------- Noise ---------- */
 const NT=1024, NM=1023, T=new Float32Array(NT*NT);
-for(let i=0;i<T.length;i++) T[i]=Math.random()-.5;
+{ const fill=rng(0x2F6E2B1); for(let i=0;i<T.length;i++) T[i]=fill()-.5; }   // fixed fill: a saved seed has to give the same grain, stains and leaks every time the app opens
 function vn(x,y,o){
   const xf=Math.floor(x), yf=Math.floor(y), fx=x-xf, fy=y-yf;
   const x0=(xf+o)&NM, x1=(x0+1)&NM, y0=(yf+o*7)&NM, y1=(y0+1)&NM;
@@ -1144,6 +1153,12 @@ function develop(src, out, P, stock, SD, stamp){
   const doTemp=Math.abs(tv)>.005, doUser=uc!==1||us!==1||doTemp;
   // Film faults
   const ef=P.edgeFog||0, efW=(.05+.1*ef)*M, oE=SD.edgeFog*61+90&NM;
+  // Edge fog leaks in unevenly: each edge gets its own strength and a wavering depth along its length, so it never reads as a neat frame
+  let efEw=null, efMx=null, efMy=null;
+  if(ef>0){ const efR=rng(SD.edgeFog*17+3); efEw=[.2+.8*efR(),.2+.8*efR(),.2+.8*efR(),.2+.8*efR()]; efEw[Math.floor(efR()*4)]=1;
+    efMx=new Float32Array(W*2); efMy=new Float32Array(H*2);
+    for(let x=0;x<W;x++){ efMx[x]=.75+.95*vns(x/(110*S),1.5,oE); efMx[W+x]=.75+.95*vns(x/(110*S),7.5,oE); }
+    for(let y=0;y<H;y++){ efMy[y]=.75+.95*vns(1.5,y/(110*S),oE+9); efMy[H+y]=.75+.95*vns(7.5,y/(110*S),oE+9); } }
   const ox=P.overx||0, pu=P.push||0;
   const ux=P.under||0, mud=[stock.fogC[0]*.35+.08,stock.fogC[1]*.35+.09,stock.fogC[2]*.35+.07];
   const lf=P.layer||0, lyr=P.layerC||"magenta";
@@ -1152,7 +1167,6 @@ function develop(src, out, P, stock, SD, stamp){
   const rt=P.retic||0, rtC=4.2*S, oR1=SD.retic*19+333&NM, oR2=SD.retic*97+777&NM;
   const bsh=P.border||0, bcC=stock.borderC||[1+(stock.hi[2])*2.5,1+(stock.hi[1])*1.5,1+(stock.hi[0])*2.5];
   const tdv=P.tired||0;
-  const pp=P.plate||0, ppP=(5+((SD.roll*7)%5))*S, oP=SD.roll*3+66&NM;
   const rfI=P.rollFogI==null?.6:P.rollFogI, rf=rfI>0?(P.rollFog||0):0, RFr=rng(SD.rollFog*31+1), rfSide=RFr()<.5?0:1, rfH=W>=H, rfL=rfH?W:H, rfReach=(.12+.5*rf)*rfL, oF=SD.rollFog*11+222&NM;
   // Flash. Light from the flash falls off with distance (roughly inverse-square), so a direct flash
   // lights what's near and centre brightly and flatly while the surroundings drop away into darkness.
@@ -1226,7 +1240,7 @@ function develop(src, out, P, stock, SD, stamp){
     const dots=Math.min(1,av(o=>o.dots)*boost), dsum=av(o=>o.dots);
     return {hd:av(o=>o.hd), ag:Math.min(1,av(o=>o.ag)*boost), w:av3(o=>o.w), w2:av3(o=>o.w2), tide:av(o=>o.tide), dots, lift:Math.max(...L.map(o=>o.lift)), tone,
       dotC:dsum>0?[0,1,2].map(i=>L.reduce((a,o)=>a+o.dotC[i]*o.dots,0)/(dsum*n)):[1,1,1], soft:av(o=>o.soft), cell:av(o=>o.cell)}; };
-  const suRot=Math.abs(P.soupHue||0)>.5, suTh=(P.soupHue||0)*Math.PI/180, suCo=Math.cos(suTh), suSn=Math.sin(suTh), suRc=0, suVar=P.soupVar==null?.5:P.soupVar;
+  const suRot=Math.abs(P.soupHue||0)>.5, suTh=(P.soupHue||0)*Math.PI/180, suCo=Math.cos(suTh), suSn=Math.sin(suTh), suVar=P.soupVar==null?.5:P.soupVar;
   const su=P.soup||0, suI=suMix(), suH=P.soupHeat==null?.45:P.soupHeat, suBrush=P.soupHow==="brush";
   let suGB=0;
   // When it was soaked. Before shooting: the dried-out emulsion is exposed already damaged, so the effect is a touch milder and shows
@@ -1448,9 +1462,13 @@ function develop(src, out, P, stock, SD, stamp){
       }
       if(ef>0){ // edge fog: light seeped into the cassette and fogged the edges warm
         const de=Math.min(Math.min(x,W-1-x),ey);
-        if(de<efW*1.6){
-          const nz=.75+.5*vns(x/(60*S),y/(60*S),oE);
-          const k=(1-sstep(0,efW*nz,de))*ef;
+        if(de<efW*1.5){
+          const fn=.85+.3*vns(x/(45*S),y/(45*S),oE+5);
+          let q=(1-sstep(0,efW*Math.max(.15,efMy[y])*fn,x))*efEw[0];
+          let q2=(1-sstep(0,efW*Math.max(.15,efMy[H+y])*fn,W-1-x))*efEw[1]; if(q2>q) q=q2;
+          q2=(1-sstep(0,efW*Math.max(.15,efMx[x])*fn,y))*efEw[2]; if(q2>q) q=q2;
+          q2=(1-sstep(0,efW*Math.max(.15,efMx[W+x])*fn,H-1-y))*efEw[3]; if(q2>q) q=q2;
+          const k=q*ef;
           r+=(1-r)*k*.85; g+=(.55-g)*k*.55; b+=(.2-b)*k*.4;
         }
       }
@@ -1467,7 +1485,7 @@ function develop(src, out, P, stock, SD, stamp){
         const nz=vns(x/(90*S),y/(90*S),oF)*.35+vns(x/(25*S),y/(25*S),oF+5)*.1;
         const t=dEnd/rfReach+nz;
         if(t<1.15){
-          const k=(1-sstep(.55,1.1,t))*Math.min(1,Math.min(1,rf*1.4)*(.4+rfI));
+          const k=(1-sstep(.55,1.1,t))*Math.min(1,Math.min(1,rf*1.4)*(.4+rfI)*Math.min(1,rfI/.12));
           const c0=1, c1=t<.25?.88:t<.7?.88-(t-.25)*1.1:.38-(t-.7)*.5, c2=t<.25?.6:t<.7?.6-(t-.25)*1.1:.08;
           r=1-(1-r)*(1-c0*k); g=1-(1-g)*(1-clamp(c1,0,1)*k); b=1-(1-b)*(1-clamp(c2,0,1)*k);
         }
@@ -1640,23 +1658,23 @@ function develop(src, out, P, stock, SD, stamp){
       ctx.globalCompositeOperation="screen";
       const g1=ctx.createRadialGradient(cx,cy,0,cx,cy,rad);
       g1.addColorStop(0,`rgba(${c},${a})`); g1.addColorStop(.3,`rgba(${c},${.8*a})`); g1.addColorStop(.65,`rgba(${c},${.3*a})`); g1.addColorStop(1,`rgba(${c},0)`);
-      ctx.fillStyle=g1; ctx.fillRect(0,0,W,H);
+      ctx.fillStyle=g1; ctx.fillRect(cx-rad,cy-rad,rad*2,rad*2);   // only the part the glow can reach
       // hot core burns toward yellow-white
       ctx.globalCompositeOperation="lighter";
       const cr=rad*(.25+.3*lk), g2=ctx.createRadialGradient(cx,cy,0,cx,cy,cr);
       g2.addColorStop(0,`rgba(${cC},${.55*lk})`); g2.addColorStop(.5,`rgba(${cM},${.26*lk})`); g2.addColorStop(1,`rgba(${cE},0)`);
-      ctx.fillStyle=g2; ctx.fillRect(0,0,W,H);
+      ctx.fillStyle=g2; ctx.fillRect(cx-cr,cy-cr,cr*2,cr*2);
     }
     if(R()<.75){ // vertical band from a fogged film edge
       const x0=R()<.5? R()*W*.25 : W-R()*W*.25, w=(.05+R()*.14)*W*(.8+.5*lk), c=cols[Math.floor(R()*3)];
       ctx.globalCompositeOperation="screen";
       const lg=ctx.createLinearGradient(x0-w,0,x0+w,0);
       lg.addColorStop(0,`rgba(${c},0)`); lg.addColorStop(.5,`rgba(${c},${Math.min(1,.85*lk*1.05)})`); lg.addColorStop(1,`rgba(${c},0)`);
-      ctx.fillStyle=lg; ctx.fillRect(0,0,W,H);
+      ctx.fillStyle=lg; ctx.fillRect(x0-w,0,w*2,H);
       ctx.globalCompositeOperation="lighter";
       const lg2=ctx.createLinearGradient(x0-w*.3,0,x0+w*.3,0);
       lg2.addColorStop(0,`rgba(${cB2},0)`); lg2.addColorStop(.5,`rgba(${cB},${.3*lk})`); lg2.addColorStop(1,`rgba(${cB2},0)`);
-      ctx.fillStyle=lg2; ctx.fillRect(0,0,W,H);
+      ctx.fillStyle=lg2; ctx.fillRect(x0-w*.3,0,w*.6,H);
     }
     ctx.restore();
   }
@@ -1747,13 +1765,21 @@ function develop(src, out, P, stock, SD, stamp){
     c.strokeStyle="rgba(40,30,20,.35)"; c.lineWidth=Math.max(1,M*.002); c.strokeRect(side+.5,top+.5,W-1,H-1);
     c.fillStyle="rgba(0,0,0,.08)"; c.fillRect(side,top,W,Math.max(1,M*.004));
   }
+
+  // Plain white frame: an even border around the finished print, up to about a fifth of the short side
+  if((P.pframe||0)>0.004){
+    const t=document.createElement("canvas"); t.width=out.width; t.height=out.height; t.getContext("2d").drawImage(out,0,0);
+    const b=Math.max(1,Math.round(Math.min(t.width,t.height)*.2*P.pframe));
+    out.width=t.width+b*2; out.height=t.height+b*2;
+    const c=out.getContext("2d"); c.fillStyle="#fff"; c.fillRect(0,0,out.width,out.height); c.drawImage(t,b,b);
+  }
 }
 // Mould: fungus grows in the gelatin as soft, irregular colonies: a lacy, veined network that's
 // densest in the middle and feathers out at a blotchy edge, with little spots where it has eaten
 // through. The eaten emulsion shows paler and slightly discoloured. Everything is soft-edged, since
 // it's inside the emulsion, so it never reads as sharp branching lines.
 function drawMould(ctx,W,H,S,amt,I,seed){
-  const n=1+Math.round(amt*3), m=.4+I;
+  const n=1+Math.round(amt*3), m=(.4+I)*Math.min(1,I/.12);
   const t=document.createElement("canvas"); t.width=W; t.height=H; const tx=t.getContext("2d");
   const tints=[[226,232,212],[232,226,214],[218,226,224],[236,228,206]];
   for(let i=0;i<n;i++){ const Q=sub(seed*11+1,i);
@@ -1833,7 +1859,7 @@ function drawAirBells(ctx,W,H,S,amt,I,seed){
   // Bubbles cling to the film in groups and are similar in size within a group. Under each one the
   // developer couldn't reach, so the negative is clear and the print shows a soft dark disc, with a
   // slightly denser rim where developer pooled around the bubble.
-  const R=rng(seed*181+4), groups=1+Math.floor(R()*2+amt*2), n=Math.round(amt*amt*20+amt*5), m=.4+I;
+  const R=rng(seed*181+4), groups=1+Math.floor(R()*2+amt*2), n=Math.round(amt*amt*20+amt*5), m=(.4+I)*Math.min(1,I/.12);
   ctx.save();
   const G=[...Array(groups)].map(()=>({x:R()*W, y:R()*H, r:(4+R()*R()*9)*S, spread:(50+R()*170)*S}));
   for(let i=0;i<n;i++){ const g=G[i%groups], a=R()*6.283, d=Math.sqrt(R())*g.spread;
@@ -1847,7 +1873,7 @@ function drawAirBells(ctx,W,H,S,amt,I,seed){
 // Kink and crescent marks: the film was creased while loading the reel. The pressure changes the
 // emulsion's sensitivity in a crisp little crescent (thick in the middle, pointed at the ends).
 function drawKinks(ctx,W,H,S,amt,I,seed){
-  const R=rng(seed*127+6), n=Math.round(1+amt*6), m=.4+I;
+  const R=rng(seed*127+6), n=Math.round(1+amt*6), m=(.4+I)*Math.min(1,I/.12);
   ctx.save();
   for(let i=0;i<n;i++){ const x=R()*W, y=R()*H, r=(10+R()*14)*S, a0=R()*6.283, span=1.5+R()*1.3, th=r*(.18+R()*.12), dark=R()<.6;
     const rgb=dark?"16,11,9":"252,248,240", al=Math.min(.9,(.35+R()*.25)*m);
@@ -1864,7 +1890,7 @@ function drawKinks(ctx,W,H,S,amt,I,seed){
 // gently inwards, with a faintly different patch inside. They're subtle: you notice them in skies
 // and flat areas rather than everywhere. Occasionally a drop ran before drying and left a tail.
 function drawWater(ctx,W,H,S,amt,I,seed){
-  const R=rng(seed*263+8), n=Math.round(amt*amt*14+amt*3), m=.25+I*.75;
+  const R=rng(seed*263+8), n=Math.round(amt*amt*14+amt*3), m=(.25+I*.75)*Math.min(1,I/.12);
   const t=document.createElement("canvas"); t.width=W; t.height=H; const tx=t.getContext("2d");
   tx.lineJoin="round"; tx.lineCap="round";
   for(let i=0;i<n;i++){
@@ -2065,7 +2091,7 @@ function polyBlob(ctx,x,y,r,R,verts){
   ctx.closePath(); ctx.fill();
 }
 function drawDust(ctx,W,H,S,amt,I,seed,mode,colour){
-  const m=.55+.75*I, A=v=>Math.min(.9,v*m), sz=.85+.25*I;
+  const m=(.55+.75*I)*Math.min(1,I/.12), A=v=>Math.min(.9,v*m), sz=.85+.25*I;
   ctx.save(); ctx.globalCompositeOperation="source-over";
   // 1. fine powder: lots of tiny points
   const fine=Math.round(amt*amt*600+amt*80);
@@ -2109,7 +2135,7 @@ function drawDust(ctx,W,H,S,amt,I,seed,mode,colour){
 function drawFibres(ctx,W,H,S,amt,I,seed,mode,colour){
   // Real fibres on scans: long, gently wandering threads (clothing fibres, the most common), short
   // tight curls (hair), and softer fuzzy lint. They're smooth and continuous: no side branches.
-  const m=.55+.75*I, wI=.9+.2*I;
+  const m=(.55+.75*I)*Math.min(1,I/.12), wI=.9+.2*I;
   ctx.save(); ctx.lineCap="round"; ctx.lineJoin="round";
   const fib=Math.round(amt*amt*14+amt*3);
   for(let i=0;i<fib;i++){ const Q=sub(seed*5+1,i);
@@ -2162,7 +2188,7 @@ function drawFibres(ctx,W,H,S,amt,I,seed,mode,colour){
 // - cinch marks: a cluster of short scratches at the same slight angle, from the roll being pulled tight;
 // - most print light (base side); some print dark (through the emulsion); a few take a dye-layer colour.
 function drawScratches(ctx,W,H,S,amt,I,seed){
-  let R=rng(seed*7727+3); const m=.55+.75*I, horiz=W>=H, Lm=horiz?W:H, X=horiz?H:W;
+  let R=rng(seed*7727+3); const m=(.55+.75*I)*Math.min(1,I/.12), horiz=W>=H, Lm=horiz?W:H, X=horiz?H:W;
   const P=(u,v)=> horiz?[v,u]:[u,v];
   ctx.save(); ctx.lineCap="round"; ctx.lineJoin="round";
   const pickCol=()=>{ const k=R();
@@ -2525,7 +2551,7 @@ function draw(){
   const base=dragging?dragSource():src.prev, hs0=healedSource(base,state.spots,true), hs=cropCanvas(hs0,true,state.tab==="crop");
   state.lastSrc={W:hs.width,H:hs.height}; state.lastBase={W:hs0.width,H:hs0.height};
   const t0=performance.now();
-  develop(hs,view,effP(),stockFor(),state.seeds,state.stamp);
+  { const Pe=effP(); develop(hs,view,Pe,stockFor(),state.seeds,state.stamp); view.classList.toggle("framed",(Pe.pframe||0)>.004||!!Pe.frame); }
   noteCost(performance.now()-t0,hs.width*hs.height);
   // a stretched drag preview is softened slightly so it reads as soft rather than blocky; cleared at full quality
   let blur="";
@@ -3240,7 +3266,7 @@ const TAB_OF={"Looks":"film","Film stock":"film","How expired":"film","Film spee
   "White balance":"light","Adjust":"light","Retouch":"light","Grain and light":"light","Lens":"light",
   "Film faults":"damage","Damage":"damage","Accidents":"damage","Film soup":"damage",
   "Camera type":"camera","Flash":"camera","In the camera":"camera","Instant film":"camera",
-  "Developing":"dark","Printing":"dark","Crop":"crop","Develop the print":"develop","Print size":"develop"};
+  "Developing":"dark","Printing":"dark","Crop":"crop","Develop the print":"develop","Frame":"develop","Print size":"develop"};
 // the sections are put in a sensible order within each tab (the page source has them in the order they were added)
 (()=>{ const panel=$("panel"), by={}; panel.querySelectorAll(":scope > .sec").forEach(sec=>{ const h=sec.querySelector("h2"); by[h?h.firstChild.textContent.trim():""]=sec; });
   Object.keys(TAB_OF).forEach(t=>{ if(by[t]) panel.appendChild(by[t]); }); })();
