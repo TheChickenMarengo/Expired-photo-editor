@@ -1126,7 +1126,8 @@ function develop(src, out, P, stock, SD, stamp){
   if((P.deflare||0)>.005) deflare(d,W,H,P.deflare);
   const gCell=Math.max(.5,(.55+P.gsize*2.2)*S), gCell2=gCell*2.4;
   const stCell=230*S, stCell2=stCell*.42;
-  const gS=SD.grain, o1=gS*37&NM, o2=gS*91+300&NM, o3=gS*53+600&NM, o4=sSt*17+150&NM, o5=sSt*71+800&NM;
+  const gS=SD.grain, o1=gS*37&NM, o2=gS*91+300&NM, o3=gS*53+600&NM, o4=sSt*17+150&NM, o5=sSt*71+800&NM, oG6=gS*29+900&NM, oG7=gS*67+1200&NM;
+  const gF=gCell*.5, gCh=gCell*1.6, GM=.55, GK=1.3;   // grain: a clump scale, a coarser one and a fine bite; dye clouds (colour grain) are a little bigger than the silver
   const lomoCam=P.camType==="lomo", sat=stock.sat*(1-.25*P.fade)*(lomoCam?1.2:1), con=stock.con*(1-.5*P.fade)*(lomoCam?1.16:1);   // a compact auto camera's punchy, shadow-crushing look
   const fog=P.fog, fr=stock.fogC[0]*fog, fg=stock.fogC[1]*fog, fb=stock.fogC[2]*fog, keep=1-fog*.7;
   const cs=P.shift*3, sh=stock.sh, hi=stock.hi;
@@ -1308,8 +1309,13 @@ function develop(src, out, P, stock, SD, stamp){
   const fFx = fx>0 ? cacheField("fx2"+SD.fixer, W,H,(x,y)=>vns(x/(160*S),y/(160*S),oFx)*.7+vns(x/(55*S),y/(55*S),oFx+3)*.3+.5) : null;
   const fDc2 = dc>0 ? cacheField("dc2"+SD.dichroic, W,H,(x,y)=>vns(x/(140*S),y/(140*S),oDc+7)) : null;
   const fBu = (bu>0||dg>0) ? cacheField("bu"+SD.burn, W,H,(x,y)=>1+vns(x/(180*S),y/(180*S),oBu)*.5) : null;
-  const fG = gr>0 ? cacheField("g"+gS+"_"+gCell.toFixed(3), W,H,(x,y)=>vn(x/gCell,y/gCell,o1)*1.25+vn(x/gCell2,y/gCell2,o2)*.7) : null;
-  const fGc = (gr>0&&chroma) ? cacheField("gc"+gS+"_"+gCell.toFixed(3), W,H,(x,y)=>vn(x/gCell,y/gCell,o3)) : null;
+  // Silver grain: three scales of rounded blobs, then pushed so the clumps stand out (film grain isn't a smooth haze)
+  const gN=(x,y)=>{ const m=vns(x/gCell,y/gCell,o1)*1.15+vns(x/gCell2,y/gCell2,o2)*.65+vn(x/gF,y/gF,oG6)*.6; return m*(1+GK*Math.abs(m))*GM; };
+  const gKey=gS+"_"+gCell.toFixed(3);
+  const fG = gr>0 ? cacheField("g2"+gKey, W,H,gN) : null;
+  // Colour grain: each dye layer has its own clouds, so red, green and blue wander apart a little
+  const fGr = (gr>0&&chroma) ? cacheField("g2r"+gKey, W,H,(x,y)=>vns(x/gCh,y/gCh,o3)) : null;
+  const fGg = (gr>0&&chroma) ? cacheField("g2g"+gKey, W,H,(x,y)=>vns(x/gCh,y/gCh,oG7)) : null;
   const fPf = pSurf==="fibre" ? cacheField("pf"+SD.paper, W,H,(x,y)=>vn(x/(1.1*S),y/(6*S),oPf)*.05+vn(x/(5*S),y/(1.2*S),oPf+9)*.03) : null;
   // The print's chemical bath. At the defaults (full time, 20°C, regular agitation, stop bath,
   // full fix and wash) it changes nothing. Darker tones gain density first and highlights last,
@@ -1574,9 +1580,11 @@ function develop(src, out, P, stock, SD, stamp){
       if(gr>0){
         const lg=clamp(.299*r+.587*g+.114*b,0,1);
         const amp=gr*(.35+2.6*lg*(1-lg))*(1+ux*1.1*(1-lg))*(1+suGB);
-        const n=(fG?fG[j]:vn(x/gCell,y/gCell,o1)*1.25+vn(x/gCell2,y/gCell2,o2)*.7)*amp;
-        let c=0; if(chroma) c=(fGc?fGc[j]:vn(x/gCell,y/gCell,o3))*amp*chroma;
-        r+=n+c; g+=n; b+=n-c;
+        const n=(fG?fG[j]:gN(x,y))*amp;
+        if(chroma){
+          const ca=fGr?fGr[j]:vns(x/gCh,y/gCh,o3), cb=fGg?fGg[j]:vns(x/gCh,y/gCh,oG7), ck=amp*chroma*.9;   // two clouds, with blue taking the difference, so the colour wobble adds no brightness
+          r+=n+ca*ck; g+=n+cb*ck*.6; b+=n-(ca+cb*.6)*ck;
+        } else { r+=n; g+=n; b+=n; }
       }
       if(pSurf==="fibre"){ const t=fPf?fPf[j]:vn(x/(1.1*S),y/(6*S),oPf)*.05+vn(x/(5*S),y/(1.2*S),oPf+9)*.03; r+=t; g+=t; b+=t; }
       d[p]=r*255; d[p+1]=g*255; d[p+2]=b*255;
