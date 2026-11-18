@@ -3274,7 +3274,7 @@ const TAB_OF={"Looks":"film","Film stock":"film","How expired":"film","Film spee
   "White balance":"light","Adjust":"light","Retouch":"light","Grain and light":"light","Lens":"light",
   "Film faults":"damage","Damage":"damage","Accidents":"damage","Film soup":"damage",
   "Camera type":"camera","Flash":"camera","In the camera":"camera","Instant film":"camera",
-  "Developing":"dark","Printing":"dark","Crop":"crop","Develop the print":"develop","Frame":"develop","Print size":"develop"};
+  "Developing":"dark","Printing":"dark","Crop":"crop","Develop the print":"develop","Frame":"film","Print size":"develop"};
 // the sections are put in a sensible order within each tab (the page source has them in the order they were added)
 (()=>{ const panel=$("panel"), by={}; panel.querySelectorAll(":scope > .sec").forEach(sec=>{ const h=sec.querySelector("h2"); by[h?h.firstChild.textContent.trim():""]=sec; });
   Object.keys(TAB_OF).forEach(t=>{ if(by[t]) panel.appendChild(by[t]); }); })();
